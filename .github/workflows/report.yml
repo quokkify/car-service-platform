@@ -18,9 +18,74 @@ jobs:
       source-workflow: PR Pipeline
       source-workflow-path: .github/workflows/pr.yml
       artifact-prefix: allure-results-
-      minimum-artifacts: 1
+      minimum-artifacts: 5
+      maximum-artifacts: 5
       config-file: scripts/allure/allurerc.mjs
       categories-file: .github/allure/categories.json
       publish-pages: false
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  pyramid-check:
+    name: Test pyramid advisory
+    if: >-
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+      contains(fromJSON('["success","failure","neutral","timed_out"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out trusted reporting code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+        with:
+          node-version: "24"
+          working-directory: .
+          install-dependencies: "false"
+          cache-dependencies: "false"
+
+      - name: Download source Allure artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+
+      - name: Validate and merge the five-artifact contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            allure-results-frontend
+            allure-results-frontend-portal-status
+            allure-results-backend
+            allure-results-e2e-app
+            allure-results-e2e-django-admin
+          )
+          for name in "${expected[@]}"; do
+            test -d "artifacts/$name" || { echo "Missing required Allure artifact: $name" >&2; exit 1; }
+          done
+          mapfile -t actual < <(find artifacts -mindepth 1 -maxdepth 1 -type d -name 'allure-results-*' -printf '%f\n' | sort)
+          ((${#actual[@]} == ${#expected[@]})) || { echo "Expected exactly five Allure artifacts, found ${#actual[@]}" >&2; exit 1; }
+          bash scripts/ci/merge-allure-result-dirs.sh \
+            "$GITHUB_WORKSPACE/artifacts/allure-results" \
+            "$GITHUB_WORKSPACE/artifacts/_merged_ci_env.properties" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-frontend" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-frontend-portal-status" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-backend" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-e2e-app" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-e2e-django-admin"
+
+      - name: Run project test pyramid advisory
+        env:
+          PYRAMID_SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          PYRAMID_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node .github/scripts/allure-ci.mjs pyramid-check \
+            --results artifacts/allure-results \
+            --json artifacts/pyramid-quality-gates.json

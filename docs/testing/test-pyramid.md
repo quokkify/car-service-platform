@@ -73,7 +73,7 @@ These are **orientation** numbers (similar in spirit to Mike Cohn’s pyramid) a
 
 ## Quality gates (advisory, non-blocking)
 
-The **Test Report** workflow calls the reusable [`project-toolkit/.github/workflows/allure-publisher.yml@v2.21.5`](https://github.com/quokkify/project-toolkit/tree/v2.21.5/.github/workflows/allure-publisher.yml), which validates and merges the dedicated backend/frontend/E2E Allure artifacts before publishing the PR comment. The scheduled/manual **Test Pyramid Snapshot Refresh** workflow keeps the project-specific pyramid export and quality gates before opening/updating the rolling snapshot PR. This is a **quality signal**, not a merge gate:
+The **Test Report** workflow calls the reusable [`project-toolkit/.github/workflows/allure-publisher.yml@v2.21.5`](https://github.com/quokkify/project-toolkit/tree/v2.21.5/.github/workflows/allure-publisher.yml), which validates and merges exactly five dedicated backend/frontend/E2E Allure artifacts before publishing the PR comment. Its companion `pyramid-check` job downloads the same five-artifact contract and runs the trusted project exporter without executing PR code. The scheduled/manual **Test Pyramid Snapshot Refresh** workflow keeps the project-specific pyramid export and quality gates before opening/updating the rolling snapshot PR. This is a **quality signal**, not a merge gate:
 
 - **Violations** surface as GitHub **Annotations** (`::warning::`) and in the **Job summary** for the Test Report job.
 - The workflow **always exits successfully** for this step (`exit 0`); it does **not** fail the run or block merge.
