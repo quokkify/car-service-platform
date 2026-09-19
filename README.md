@@ -6,11 +6,15 @@
 
 Django + DRF · React + Vite + TypeScript · PostgreSQL · Docker Compose
 
-[Quick start](#quick-start) · [Product spec](docs/spec/PRODUCT.md) · [Runbook](docs/spec/RUNBOOK.md) · [Issues](https://github.com/ylazakovich/car-service-platform/issues) · [Releases](https://github.com/ylazakovich/car-service-platform/releases)
+[Quick start](#quick-start) · [Product spec](docs/spec/PRODUCT.md) · [Runbook](docs/spec/RUNBOOK.md) · [Issues](https://github.com/quokkify/car-service-platform/issues) · [Releases](https://github.com/quokkify/car-service-platform/releases)
 
 </div>
 
-![Car Service Platform operations dashboard with live workshop summary](docs/assets/readme/dashboard.png)
+![Car Service Platform operations dashboard with live workshop summary](https://raw.githubusercontent.com/quokkify/.github/main/assets/projects/car-service-platform/dashboard.png)
+
+Project status: [beta](.github/project-status.yml) · active implementation · production readiness not certified · current release `v1.4.1`.
+
+Documentation showcase assets are hosted in [quokkify/.github](https://github.com/quokkify/.github/tree/main/assets/projects/car-service-platform). To update the project scaffold, run `copier update --trust` and review the generated diff before committing.
 
 > The hero is the OpenDesign/Claude Design dashboard target with deterministic synthetic counts. Its sidebar restores the live **Today** summary: open work, repairs waiting for parts, and vehicles ready to pick up. The repair board, invoice intake, and customer portal below were captured from the running application with synthetic demo data. No customer data or secrets are included.
 
@@ -27,19 +31,19 @@ Django + DRF · React + Vite + TypeScript · PostgreSQL · Docker Compose
 
 Daily work stays visible by status, technician, vehicle, service, and tracking reference.
 
-![Vehicle-first repair Kanban board](docs/assets/readme/board.png)
+![Vehicle-first repair Kanban board](https://raw.githubusercontent.com/quokkify/.github/main/assets/projects/car-service-platform/board.png)
 
 ### Invoice intake
 
 Supplier evidence and editable purchase lines stay together; operator confirmation remains part of the flow.
 
-![Warehouse purchase and invoice intake](docs/assets/readme/invoice.png)
+![Warehouse purchase and invoice intake](https://raw.githubusercontent.com/quokkify/.github/main/assets/projects/car-service-platform/invoice.png)
 
 ### Customer repair tracking
 
 Customers see only their repair timeline, expected completion, workshop address, phone, and directions. The location link points to the workshop — it is not live vehicle GPS tracking.
 
-![Customer repair status and workshop directions](docs/assets/readme/tracking.png)
+![Customer repair status and workshop directions](https://raw.githubusercontent.com/quokkify/.github/main/assets/projects/car-service-platform/tracking.png)
 
 ## What is inside
 
