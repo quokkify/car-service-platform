@@ -73,7 +73,7 @@ These are **orientation** numbers (similar in spirit to Mike Cohn’s pyramid) a
 
 ## Quality gates (advisory, non-blocking)
 
-The **Test Report** workflow calls [`project-toolkit/actions/allure-report@v2.7.2`](https://github.com/quokkify/project-toolkit/tree/v2.7.2/actions/allure-report), which delegates to the public [`allure-report-action@v0.1.2`](https://github.com/quokkify/allure-report-action/releases/tag/v0.1.2), on merged PR Allure results. The scheduled/manual **Test Pyramid Snapshot Refresh** workflow runs the same `pyramid-check` implementation before opening/updating the rolling snapshot PR. This is a **quality signal**, not a merge gate:
+The **Test Report** workflow calls the reusable [`project-toolkit/.github/workflows/allure-publisher.yml@v2.21.5`](https://github.com/quokkify/project-toolkit/tree/v2.21.5/.github/workflows/allure-publisher.yml), which validates and merges exactly five dedicated backend/frontend/E2E Allure artifacts before publishing the PR comment. Its companion `pyramid-check` job downloads the same five-artifact contract and runs the trusted project exporter without executing PR code. The scheduled/manual **Test Pyramid Snapshot Refresh** workflow keeps the project-specific pyramid export and quality gates before opening/updating the rolling snapshot PR. This is a **quality signal**, not a merge gate:
 
 - **Violations** surface as GitHub **Annotations** (`::warning::`) and in the **Job summary** for the Test Report job.
 - The workflow **always exits successfully** for this step (`exit 0`); it does **not** fail the run or block merge.
@@ -105,7 +105,7 @@ Then, with a merged Allure results directory (e.g. after CI download or local ru
 ```bash
 node "$ALLURE_CI" pyramid \
   --results path/to/allure-results \
-  --output docs/testing/latest/README.md \
+  --output docs/testing/latest/pyramid-snapshot.md \
   --json docs/testing/latest/pyramid-snapshot.json
 ```
 
@@ -121,8 +121,8 @@ node "$ALLURE_CI" pyramid-check \
 
 ## FAQ — generated snapshot on `main` looks stale
 
-1. PR reporting is intentionally read-only for PR branches: **Test Report** publishes artifacts/Pages/comment and mirrors the source PR Pipeline conclusion, but it does **not** commit generated docs back to the PR head.
-2. `main` snapshots are refreshed by **Test Pyramid Snapshot Refresh** (`schedule` + `workflow_dispatch`). It runs the test suite on `main`, regenerates `docs/testing/latest/README.md`, `docs/testing/latest/pyramid-snapshot.json`, and `docs/testing/latest/pyramid-quality-gates.json`, then opens/updates the rolling `chore/test-pyramid-snapshot` PR only when those files changed. The root README intentionally stays a stable navigation page and only links to the accepted latest snapshot.
+1. PR reporting is intentionally read-only for PR branches: **Test Report** publishes the trusted Allure artifact and PR comment, but keeps GitHub Pages publication disabled for this repository; it does **not** commit generated docs back to the PR head.
+2. `main` snapshots are refreshed by **Test Pyramid Snapshot Refresh** (`schedule` + `workflow_dispatch`). It runs the test suite on `main`, regenerates `docs/testing/latest/pyramid-snapshot.md`, `docs/testing/latest/pyramid-snapshot.json`, and `docs/testing/latest/pyramid-quality-gates.json`, then opens/updates the rolling `chore/test-pyramid-snapshot` PR only when those files changed. The root README intentionally stays a stable navigation page and only links to the accepted latest snapshot.
 3. **Fix now:** run **Test Pyramid Snapshot Refresh** manually from GitHub Actions, or refresh locally from merged `allure-results` using the command above and open a small PR.
 
 ## Related docs

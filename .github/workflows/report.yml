@@ -5,212 +5,132 @@ on:
     workflows: ["PR Pipeline"]
     types: [completed]
 
-# Same head branch → newer PR Pipeline completion cancels an in-progress Test Report (one deploy at a time per branch).
-concurrency:
-  group: >-
-    ${{ github.workflow }}-${{
-      github.event.workflow_run.head_repository.full_name || github.repository
-    }}-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
-
 permissions:
-  contents: write # deploy-gh-pages-subdir pushes the gh-pages branch
-  checks: write
+  actions: read
+  contents: read
   pull-requests: write
-  actions: write
 
 jobs:
-  test-report:
-    name: Test Report
-    # Cancelled PR Pipeline often has no E2E artifacts → partial Allure (e.g. 144 = unit+api only).
+  validate-allure-artifacts:
+    name: Validate exact Allure artifact set
     if: >-
       ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion != 'cancelled' }}
+      contains(fromJSON('["success","failure","neutral","timed_out"]'), github.event.workflow_run.conclusion) }}
     runs-on: ubuntu-latest
-
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          persist-credentials: false
-
-      - uses: quokkify/project-toolkit/actions/setup-node@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
-        with:
-          node-version: "24"
-          install-dependencies: "false"
-          cache-dependencies: "false"
-
-      # workflow_run.pull_requests is often empty (forks, timing). Fall back: commit → PR (gh api).
-      - name: Resolve PR number (GitHub Pages path)
-        id: pr_ctx
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_PULLS_JSON: ${{ toJson(github.event.workflow_run.pull_requests) }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          PR_NUMBER="$(node -e "const a=JSON.parse(process.env.PR_PULLS_JSON||'[]'); process.stdout.write(String(a[0]?.number??''))")"
-          if [ -z "$PR_NUMBER" ]; then
-            PR_NUMBER="$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" -q '.[0].number // empty' 2>/dev/null || true)"
-          fi
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-          if [ -n "$PR_NUMBER" ]; then echo "has_pr=true" >> "$GITHUB_OUTPUT"; else echo "has_pr=false" >> "$GITHUB_OUTPUT"; fi
-
-      - name: Detect fork PR (no Pages preview for cross-repo)
-        id: fork
-        env:
-          HEAD_FULL: ${{ github.event.workflow_run.head_repository.full_name }}
-        run: |
-          REPO="${{ github.repository }}"
-          if [ -z "$HEAD_FULL" ] || [ "$HEAD_FULL" = "$REPO" ]; then
-            echo "fork=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "fork=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download artifacts from PR Pipeline
+      - name: Download source Allure artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifacts
 
-      - name: Debug — Allure artifact layout
+      - name: Require the exact five-artifact set
+        shell: bash
         run: |
-          echo "workflow_run conclusion=${{ github.event.workflow_run.conclusion }}"
-          shopt -s nullglob
-          dirs=(artifacts/allure-results-*)
-          if ((${#dirs[@]} == 0)); then
-            echo "No allure-results-* artifact directories found"
-          fi
-          for d in "${dirs[@]}"; do
-            n=$(find "$d" -maxdepth 3 -name '*-result.json' 2>/dev/null | wc -l | tr -d ' ')
-            echo "$(basename "$d"): *-result.json count=$n"
-          done
-          shopt -u nullglob
+          set -euo pipefail
+          expected=(
+            allure-results-frontend
+            allure-results-frontend-portal-status
+            allure-results-backend
+            allure-results-e2e-app
+            allure-results-e2e-django-admin
+          )
+          mapfile -t actual < <(find artifacts -mindepth 1 -maxdepth 1 -type d -name 'allure-results-*' -printf '%f\n' | sort)
+          printf '%s\n' "${expected[@]}" | sort > expected.txt
+          printf '%s\n' "${actual[@]}" > actual.txt
+          diff -u expected.txt actual.txt
 
-      # hashFiles() follows .gitignore; repo root ignores artifacts/ → conditions were always false on GitHub.
-      - name: Probe downloaded JUnit paths
-        id: junit_paths
-        run: |
-          fr="false"
-          be="false"
-          e2e="false"
-          [ -f artifacts/frontend-test-results/junit.xml ] && fr="true"
-          shopt -s nullglob
-          be_xml=(artifacts/backend-test-results/*.xml)
-          e2e_xml=(artifacts/e2e-test-results-*/e2e-junit.xml artifacts/e2e-test-results/e2e-junit.xml)
-          ((${#be_xml[@]})) && be="true"
-          ((${#e2e_xml[@]})) && e2e="true"
-          shopt -u nullglob
-          echo "frontend=$fr" >> "$GITHUB_OUTPUT"
-          echo "backend=$be" >> "$GITHUB_OUTPUT"
-          echo "e2e=$e2e" >> "$GITHUB_OUTPUT"
-          echo "Probe: frontend=$fr backend=$be e2e=$e2e"
+  test-report:
+    name: Test Report
+    needs: validate-allure-artifacts
+    uses: quokkify/project-toolkit/.github/workflows/allure-publisher.yml@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+    with:
+      source-workflow: PR Pipeline
+      source-workflow-path: .github/workflows/pr.yml
+      artifact-prefix: allure-results-
+      minimum-artifacts: 5
+      maximum-artifacts: 5
+      config-file: scripts/allure/allurerc.mjs
+      categories-file: .github/allure/categories.json
+      publish-pages: false
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # dorny/test-reporter: reporter "java-junit" = JUnit XML (Vitest, pytest, xmlrunner, etc.), not a Java stack.
-      # fail-on-error: false — иначе при любом упавшем тесте шаг падает и job не доходит до Merge Allure / gh-pages / комментария в PR.
-      # Итог провала по-прежнему виден в созданном check run у test-reporter и в Allure.
-      - name: Frontend Test Report
-        if: steps.junit_paths.outputs.frontend == 'true'
-        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3
+  pyramid-check:
+    name: Test pyramid advisory
+    if: >-
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+      contains(fromJSON('["success","failure","neutral","timed_out"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out trusted reporting code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          name: Frontend Tests
-          path: artifacts/frontend-test-results/junit.xml
-          reporter: java-junit
-          fail-on-error: "false"
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
-      - name: Backend Test Report
-        if: steps.junit_paths.outputs.backend == 'true'
-        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3
+      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
-          name: Backend Tests
-          path: artifacts/backend-test-results/*.xml
-          reporter: java-junit
-          fail-on-error: "false"
+          node-version: "24"
+          working-directory: .
+          install-dependencies: "false"
+          cache-dependencies: "false"
 
-      - name: E2E (Playwright) Test Report
-        if: steps.junit_paths.outputs.e2e == 'true'
-        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3
+      - name: Download source Allure artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: E2E (Playwright)
-          path: artifacts/e2e-test-results-*/e2e-junit.xml,artifacts/e2e-test-results/e2e-junit.xml
-          reporter: java-junit
-          fail-on-error: "false"
-
-      # PR Pipeline uploads one Allure result artifact per CI job/matrix shard; merge without clobbering environment fragments.
-      - name: Merge Allure results
-        id: allure
-        run: |
-          bash scripts/ci/merge-allure-result-dirs.sh \
-            "${{ github.workspace }}/artifacts/allure-results" \
-            "${{ github.workspace }}/artifacts/_merged_ci_env.properties" \
-            "${{ github.workspace }}/artifacts/allure-results-frontend" \
-            "${{ github.workspace }}/artifacts/allure-results-frontend-portal-status" \
-            "${{ github.workspace }}/artifacts/allure-results-backend" \
-            "${{ github.workspace }}/artifacts/allure-results-e2e-app" \
-            "${{ github.workspace }}/artifacts/allure-results-e2e-django-admin" \
-            "${{ github.workspace }}/artifacts/allure-results-e2e"
-          if compgen -G 'artifacts/allure-results/*-result.json' > /dev/null; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up Python (Django version for Allure environment.properties)
-        if: steps.allure.outputs.present == 'true'
-        uses: quokkify/project-toolkit/actions/setup-python@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
-        with:
-          python-version: "3.14"
-          working-directory: backend
-          package-manager: pip
-          requirements-file: requirements-test.txt
-
-      - name: Write Allure environment.properties
-        if: steps.allure.outputs.present == 'true'
-        env:
-          ALLURE_RESULTS_DIR: ${{ github.workspace }}/artifacts/allure-results
-          ALLURE_VARIABLES_JSON: ${{ github.workspace }}/artifacts/allure-variables.json
-          ALLURE_MERGED_CI_ENV: ${{ github.workspace }}/artifacts/_merged_ci_env.properties
-          REPO_ROOT: ${{ github.workspace }}
-          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
-          GITHUB_REF_NAME: ${{ github.event.workflow_run.head_branch }}
-          ALLURE_GITHUB_WORKFLOW: ${{ github.event.workflow_run.name }}
-          ALLURE_SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-        run: bash scripts/ci/write-allure-environment.sh
-
-      - name: Build and comment Allure report via toolkit
-        if: steps.allure.outputs.present == 'true'
-        uses: quokkify/project-toolkit/actions/allure-report@a8217fa983347a3dd10133ec51117f873485b138 # v2.7.2
-        with:
+          run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          results-directory: artifacts/allure-results
-          report-directory: allure-report
-          config-file: scripts/allure/allurerc.mjs
-          categories-file: .github/allure/categories.json
-          allure-version: "3.14.2"
-          pr-number: ${{ steps.pr_ctx.outputs.number }}
-          # Query string busts browser/CDN cache for GitHub Pages (same path per PR otherwise looks "stale").
-          pages-url: ${{ format('https://{0}.github.io/{1}/allure/pr-{2}/?run={3}', github.repository_owner, github.event.repository.name, steps.pr_ctx.outputs.number, github.event.workflow_run.id) }}
-          fork-pr: ${{ steps.fork.outputs.fork }}
-          source-run-id: ${{ github.event.workflow_run.id }}
-          comment-marker: "<!-- csp-allure-ci -->"
-          pyramid-enabled: "true"
-          pyramid-source-run-id: ${{ github.event.workflow_run.id }}
-          pyramid-head-sha: ${{ github.event.workflow_run.head_sha }}
-          publish-pages: ${{ steps.pr_ctx.outputs.has_pr == 'true' && steps.fork.outputs.fork == 'false' }}
-          pages-destination-directory: allure/pr-${{ steps.pr_ctx.outputs.number }}
-          pages-retention-count: "20"
+          path: artifacts
 
-      # После публикации отчётов: сохранить красный статус workflow, если PR Pipeline не success (отдельно от fail-on-error в test-reporter).
-      - name: Mirror PR Pipeline conclusion
-        if: always()
+      - name: Validate and merge the five-artifact contract
+        shell: bash
         run: |
-          case '${{ github.event.workflow_run.conclusion }}' in
-            success) exit 0 ;;
-            *)
-              echo "::error::PR Pipeline ended as ${{ github.event.workflow_run.conclusion }}. Allure/JUnit steps above still ran; see PR comment, Checks tab, and artifacts on the source run (e.g. playwright-report from End-to-end job)."
-              exit 1
-              ;;
-          esac
+          set -euo pipefail
+          expected=(
+            allure-results-frontend
+            allure-results-frontend-portal-status
+            allure-results-backend
+            allure-results-e2e-app
+            allure-results-e2e-django-admin
+          )
+          for name in "${expected[@]}"; do
+            test -d "artifacts/$name" || { echo "Missing required Allure artifact: $name" >&2; exit 1; }
+          done
+          mapfile -t actual < <(find artifacts -mindepth 1 -maxdepth 1 -type d -name 'allure-results-*' -printf '%f\n' | sort)
+          printf '%s\n' "${expected[@]}" | sort > expected.txt
+          printf '%s\n' "${actual[@]}" > actual.txt
+          diff -u expected.txt actual.txt
+          bash scripts/ci/merge-allure-result-dirs.sh \
+            "$GITHUB_WORKSPACE/artifacts/allure-results" \
+            "$GITHUB_WORKSPACE/artifacts/_merged_ci_env.properties" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-frontend" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-frontend-portal-status" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-backend" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-e2e-app" \
+            "$GITHUB_WORKSPACE/artifacts/allure-results-e2e-django-admin"
+
+      - name: Run project test pyramid advisory
+        env:
+          PYRAMID_SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          PYRAMID_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node .github/scripts/allure-ci.mjs pyramid-check \
+            --results artifacts/allure-results \
+            --json artifacts/pyramid-quality-gates.json
+
+      - name: Upload pyramid advisory artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pyramid-quality-gates
+          path: artifacts/pyramid-quality-gates.json
+          if-no-files-found: warn
+          retention-days: 30

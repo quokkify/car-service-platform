@@ -42,12 +42,12 @@ jobs:
         name: Capture checked-out SHA
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - uses: quokkify/project-toolkit/actions/setup-node@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
+      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
           node-version: "24"
           working-directory: frontend
 
-      - uses: quokkify/project-toolkit/actions/setup-python@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
+      - uses: quokkify/project-toolkit/actions/setup-python@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
           python-version: "3.14"
           working-directory: backend
@@ -126,7 +126,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/project-toolkit/actions/compose-up@cca33fbcc71864f2a08d7309cb17f93b1efd0c26 # v2.0.0
+      - uses: quokkify/project-toolkit/actions/compose-up@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -211,13 +211,15 @@ jobs:
         run: bash scripts/ci/write-allure-environment.sh
 
       - name: Export test pyramid snapshot
+        if: always()
         env:
           PYRAMID_SOURCE_RUN_ID: ${{ github.run_id }}
           PYRAMID_HEAD_SHA: ${{ steps.checked_out_revision.outputs.sha }}
         run: |
+          mkdir -p artifacts/allure-results
           node .github/scripts/allure-ci.mjs pyramid \
             --results artifacts/allure-results \
-            --output docs/testing/latest/README.md \
+            --output docs/testing/latest/pyramid-snapshot.md \
             --json docs/testing/latest/pyramid-snapshot.json
           node .github/scripts/allure-ci.mjs pyramid-check \
             --results artifacts/allure-results \
@@ -229,7 +231,7 @@ jobs:
         with:
           name: pyramid-snapshot
           path: |
-            docs/testing/latest/README.md
+            docs/testing/latest/pyramid-snapshot.md
             docs/testing/latest/pyramid-snapshot.json
             docs/testing/latest/pyramid-quality-gates.json
           retention-days: 30
@@ -241,7 +243,7 @@ jobs:
           set -euo pipefail
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           paths=(
-            docs/testing/latest/README.md
+            docs/testing/latest/pyramid-snapshot.md
             docs/testing/latest/pyramid-snapshot.json
             docs/testing/latest/pyramid-quality-gates.json
           )

@@ -31,7 +31,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-java-gradle@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
+      - uses: quokkify/project-toolkit/actions/setup-java-gradle@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
           java-version: "21"
           distribution: temurin
@@ -64,7 +64,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
+      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
           node-version: "24"
           working-directory: frontend
@@ -84,7 +84,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-python@36fba694a00c42886ad3487c137b1c5172cac2f1 # v2.3.0
+      - uses: quokkify/project-toolkit/actions/setup-python@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         with:
           python-version: "3.14"
           working-directory: backend
@@ -124,7 +124,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/project-toolkit/actions/compose-up@cca33fbcc71864f2a08d7309cb17f93b1efd0c26 # v2.0.0
+      - uses: quokkify/project-toolkit/actions/compose-up@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"

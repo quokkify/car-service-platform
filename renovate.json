@@ -1,11 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>ylazakovich/renovate-config//presets/python/default",
-    "github>ylazakovich/renovate-config//presets/npm/default",
-    "github>ylazakovich/renovate-config//presets/gradle/default",
-    "github>ylazakovich/renovate-config//presets/docker/default",
-    "github>ylazakovich/renovate-config//presets/github-actions/default"
+    "github>quokkify/renovate-presets//presets/base",
+    "github>quokkify/renovate-presets//presets/python/default",
+    "github>quokkify/renovate-presets//presets/npm/default",
+    "github>quokkify/renovate-presets//presets/gradle/default",
+    "github>quokkify/renovate-presets//presets/docker/default",
+    "github>quokkify/renovate-presets//presets/github-actions/default",
+    "github>quokkify/project-toolkit//renovate/default"
   ],
   "enabledManagers": [
     "gradle",
@@ -14,46 +16,7 @@
     "npm",
     "docker-compose",
     "dockerfile",
-    "github-actions",
-    "custom.regex"
-  ],
-  "registryAliases": {
-    "allure-cli": "npm:allure"
-  },
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Default Node.js major in composite .github/actions/setup-node (inputs.node-version)",
-      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"],
-      "matchStrings": [
-        "(?m)node-version:[\\s\\S]*?default:\\s*\"(?<currentValue>[0-9]+)\""
-      ],
-      "datasourceTemplate": "node-version",
-      "depNameTemplate": "node",
-      "versioningTemplate": "node"
-    },
-    {
-      "customType": "regex",
-      "description": "Default Python major.minor in composite .github/actions/setup-python (inputs.python-version)",
-      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-python\\/action\\.ya?ml$/"],
-      "matchStrings": [
-        "(?m)python-version:[\\s\\S]*?default:\\s*\"(?<currentValue>[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)\""
-      ],
-      "datasourceTemplate": "python-version",
-      "depNameTemplate": "python",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Allure Report 3 CLI: `npx allure@…` in report.yml. Registry package is `allure`; depName `allure-cli` is display-only (packageNameTemplate required — top-level `aliases` does not change npm lookup for regex manager).",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/report\\.ya?ml$/"],
-      "matchStrings": [
-        "npx --yes allure@(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+) generate"
-      ],
-      "datasourceTemplate": "npm",
-      "depNameTemplate": "allure-cli",
-      "packageNameTemplate": "allure"
-    }
+    "github-actions"
   ],
   "packageRules": [
     {
@@ -71,7 +34,7 @@
       "groupName": "minor and patch updates"
     },
     {
-      "description": "Auto-update postgres digest and minor/patch within major 18 only",
+      "description": "Do not update postgres major versions",
       "matchPackageNames": ["postgres"],
       "matchUpdateTypes": ["major"],
       "enabled": false

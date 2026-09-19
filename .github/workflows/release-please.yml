@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
 
 concurrency:
@@ -16,11 +15,9 @@ concurrency:
 jobs:
   release-please:
     name: Create release PR or GitHub release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run release-please
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+    uses: quokkify/project-toolkit/.github/workflows/release-please.yml@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+    with:
+      mode: single
+      config-backed-single: true
+      config-file: release-please-config.json
+      manifest-file: .release-please-manifest.json

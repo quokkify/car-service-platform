@@ -1,9 +1,0 @@
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "github>quokkify/renovate-presets//presets/python/default",
-    "github>quokkify/renovate-presets//presets/npm/default",
-    "github>quokkify/renovate-presets//presets/github-actions/default"
-  ],
-  "enabledManagers": ["pip_requirements", "npm", "github-actions", "dockerfile", "docker-compose"]
-}
