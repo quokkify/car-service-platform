@@ -1,0 +1,44 @@
+name: Update project template
+
+on:
+  workflow_dispatch:
+    inputs:
+      template-ref:
+        description: Optional released project-toolkit tag; empty uses the latest release.
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: copier-template-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Apply the shared project template
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out full repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python and Copier
+        uses: quokkify/project-toolkit/actions/setup-python@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+        with:
+          python-version: "3.14"
+          package-manager: pip
+          cache-dependencies: "false"
+          install-command: python -m pip install copier==9.18.2
+
+      - name: Apply the template and push the update branch
+        env:
+          TEMPLATE_REF: ${{ inputs.template-ref }}
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BRANCH: automation/copier-template-update
+        run: |
+          scripts/dev/copier-update.sh
