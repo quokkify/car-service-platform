@@ -22,39 +22,19 @@ docker run --rm \
   renovate --platform=local 2>&1 | tee "$LOG"
 
 echo ""
-echo "=== Quick checks (custom regex + composite Node default) ==="
-if grep -E 'Matched [0-9]+ file\(s\) for manager regex:.*setup-node/action\.yml' "$LOG" >/dev/null; then
-  echo "OK: regex manager matched .github/actions/setup-node/action.yml"
+echo "=== Quick checks (shared presets + toolkit ownership) ==="
+if grep -F 'github>quokkify/project-toolkit//renovate/default' "$ROOT/renovate.json" >/dev/null; then
+  echo "OK: project-toolkit Renovate preset is enabled"
 else
-  echo "FAIL: no 'Matched … manager regex' line for setup-node/action.yml."
-  echo "    managerFilePatterns must be a slash-delimited regex (see Renovate docs), e.g."
-  echo '    "/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"'
+  echo "FAIL: project-toolkit Renovate preset is missing from renovate.json"
   exit 1
 fi
 
-if grep -E '"datasource":\s*"node-version"' "$LOG" >/dev/null || grep -E 'datasource.*node-version' "$LOG" >/dev/null; then
-  echo "OK: node-version datasource referenced in extraction"
+if grep -R -E 'quokkify/project-toolkit/[^@]+@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/.github/workflows" >/dev/null; then
+  echo "OK: toolkit workflow/action references are immutable SHAs with release comments"
 else
-  echo "WARN: could not find node-version datasource string in log (may still be OK; inspect $LOG)"
-fi
-
-if grep -E 'default: "20"|currentValue.:.?.?20' "$LOG" >/dev/null; then
-  echo "OK: saw Node major 20 in config or extracted value"
-else
-  echo "WARN: did not grep '20' / currentValue — open log and search for setup-node + node-version"
-fi
-
-if grep -E 'Matched [0-9]+ file\(s\) for manager regex:.*setup-python/action\.yml' "$LOG" >/dev/null; then
-  echo "OK: regex manager matched .github/actions/setup-python/action.yml"
-else
-  echo "FAIL: no 'Matched … manager regex' line for setup-python/action.yml (check renovate.json customManagers python-version regex)."
+  echo "FAIL: no immutable project-toolkit workflow/action reference found"
   exit 1
-fi
-
-if grep -E '"datasource":\s*"python-version"' "$LOG" >/dev/null || grep -E 'datasource.*python-version' "$LOG" >/dev/null; then
-  echo "OK: python-version datasource referenced in extraction"
-else
-  echo "WARN: could not find python-version datasource string in log (inspect $LOG)"
 fi
 
 echo ""
