@@ -211,10 +211,12 @@ jobs:
         run: bash scripts/ci/write-allure-environment.sh
 
       - name: Export test pyramid snapshot
+        if: always()
         env:
           PYRAMID_SOURCE_RUN_ID: ${{ github.run_id }}
           PYRAMID_HEAD_SHA: ${{ steps.checked_out_revision.outputs.sha }}
         run: |
+          mkdir -p artifacts/allure-results
           node .github/scripts/allure-ci.mjs pyramid \
             --results artifacts/allure-results \
             --output docs/testing/latest/README.md \

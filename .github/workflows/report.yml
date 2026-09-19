@@ -11,8 +11,42 @@ permissions:
   pull-requests: write
 
 jobs:
+  validate-allure-artifacts:
+    name: Validate exact Allure artifact set
+    if: >-
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+      contains(fromJSON('["success","failure","neutral","timed_out"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Download source Allure artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+
+      - name: Require the exact five-artifact set
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            allure-results-frontend
+            allure-results-frontend-portal-status
+            allure-results-backend
+            allure-results-e2e-app
+            allure-results-e2e-django-admin
+          )
+          mapfile -t actual < <(find artifacts -mindepth 1 -maxdepth 1 -type d -name 'allure-results-*' -printf '%f\n' | sort)
+          printf '%s\n' "${expected[@]}" | sort > expected.txt
+          printf '%s\n' "${actual[@]}" > actual.txt
+          diff -u expected.txt actual.txt
+
   test-report:
     name: Test Report
+    needs: validate-allure-artifacts
     uses: quokkify/project-toolkit/.github/workflows/allure-publisher.yml@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
     with:
       source-workflow: PR Pipeline
@@ -71,7 +105,9 @@ jobs:
             test -d "artifacts/$name" || { echo "Missing required Allure artifact: $name" >&2; exit 1; }
           done
           mapfile -t actual < <(find artifacts -mindepth 1 -maxdepth 1 -type d -name 'allure-results-*' -printf '%f\n' | sort)
-          ((${#actual[@]} == ${#expected[@]})) || { echo "Expected exactly five Allure artifacts, found ${#actual[@]}" >&2; exit 1; }
+          printf '%s\n' "${expected[@]}" | sort > expected.txt
+          printf '%s\n' "${actual[@]}" > actual.txt
+          diff -u expected.txt actual.txt
           bash scripts/ci/merge-allure-result-dirs.sh \
             "$GITHUB_WORKSPACE/artifacts/allure-results" \
             "$GITHUB_WORKSPACE/artifacts/_merged_ci_env.properties" \
@@ -89,3 +125,12 @@ jobs:
           node .github/scripts/allure-ci.mjs pyramid-check \
             --results artifacts/allure-results \
             --json artifacts/pyramid-quality-gates.json
+
+      - name: Upload pyramid advisory artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: pyramid-quality-gates
+          path: artifacts/pyramid-quality-gates.json
+          if-no-files-found: warn
+          retention-days: 30
