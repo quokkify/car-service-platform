@@ -14,7 +14,7 @@ Django + DRF · React + Vite + TypeScript · PostgreSQL · Docker Compose
 
 Project status: [beta](.github/project-status.yml) · active implementation · production readiness not certified · current release `v1.4.1`.
 
-Documentation showcase copies are hosted in [quokkify/.github](https://github.com/quokkify/.github/tree/main/assets/projects/car-service-platform); the local `docs/assets/readme/` source copies are retained for offline documentation builds. To update the project scaffold, run `copier update --trust` and review the generated diff before committing.
+Documentation showcase assets are hosted in [quokkify/.github](https://github.com/quokkify/.github/tree/main/assets/projects/car-service-platform). To update the project scaffold, run `copier update --trust` and review the generated diff before committing.
 
 > The hero is the OpenDesign/Claude Design dashboard target with deterministic synthetic counts. Its sidebar restores the live **Today** summary: open work, repairs waiting for parts, and vehicles ready to pick up. The repair board, invoice intake, and customer portal below were captured from the running application with synthetic demo data. No customer data or secrets are included.
 
