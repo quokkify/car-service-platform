@@ -1,19 +1,22 @@
 _commit: v2.21.5
 _src_path: https://github.com/quokkify/project-toolkit.git
 allure_report: false
+codeql: true
+codeql_languages: []
 components:
-  - type: python
-    path: backend
-  - type: node
-    path: frontend
+-   path: backend
+    type: python
+-   path: frontend
+    type: node
 docker: false
 project_name: Car Service Platform
+release_mode: single
 release_please: true
 renovate: true
 renovate_config_repository: quokkify/renovate-presets
 renovate_presets:
-  - default
-  - github-actions
-  - python
-  - javascript
+- default
+- github-actions
+- python
+- javascript
 toolkit_version: v2.21.5

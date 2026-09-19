@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local Renovate dry-run via official Docker image (same idea as CI bot, no GitHub token).
-# Use after changing renovate.json (especially customManagers / regex file patterns).
+# Use after changing .github/renovate.json (especially customManagers / regex file patterns).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -23,10 +23,10 @@ docker run --rm \
 
 echo ""
 echo "=== Quick checks (shared presets + toolkit ownership) ==="
-if grep -F 'github>quokkify/project-toolkit//renovate/default' "$ROOT/renovate.json" >/dev/null; then
+if grep -F 'github>quokkify/project-toolkit//renovate/default' "$ROOT/.github/renovate.json" >/dev/null; then
   echo "OK: project-toolkit Renovate preset is enabled"
 else
-  echo "FAIL: project-toolkit Renovate preset is missing from renovate.json"
+  echo "FAIL: project-toolkit Renovate preset is missing from .github/renovate.json"
   exit 1
 fi
 

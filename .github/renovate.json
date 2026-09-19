@@ -1,0 +1,87 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>quokkify/renovate-presets//presets/base",
+    "github>quokkify/renovate-presets//presets/python/default",
+    "github>quokkify/renovate-presets//presets/npm/default",
+    "github>quokkify/renovate-presets//presets/gradle/default",
+    "github>quokkify/renovate-presets//presets/docker/default",
+    "github>quokkify/renovate-presets//presets/github-actions/default",
+    "github>quokkify/project-toolkit//renovate/default"
+  ],
+  "enabledManagers": [
+    "gradle",
+    "gradle-wrapper",
+    "pip_requirements",
+    "npm",
+    "docker-compose",
+    "dockerfile",
+    "github-actions",
+    "custom.regex"
+  ],
+  "registryAliases": {
+    "allure-cli": "npm:allure"
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track immutable project-toolkit workflow refs by their release tag comment",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "uses:\\s*quokkify/project-toolkit/[^@\\s]+@[0-9a-f]{40}\\s+#\\s*v(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "quokkify/project-toolkit",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Default Node.js major in composite setup-node action",
+      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"],
+      "matchStrings": [
+        "(?m)node-version:[\\s\\S]*?default:\\s*\\\"(?<currentValue>[0-9]+)\\\""
+      ],
+      "datasourceTemplate": "node-version",
+      "depNameTemplate": "node",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "description": "Default Python major.minor in composite setup-python action",
+      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-python\\/action\\.ya?ml$/"],
+      "matchStrings": [
+        "(?m)python-version:[\\s\\S]*?default:\\s*\\\"(?<currentValue>[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)\\\""
+      ],
+      "datasourceTemplate": "python-version",
+      "depNameTemplate": "python",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group remaining minor and patch updates into a single PR",
+      "matchPackageNames": [
+        "!@playwright/test",
+        "!playwright",
+        "!playwright-core",
+        "!postgres",
+        "!python",
+        "!node",
+        "!nginx"
+      ],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "minor and patch updates"
+    },
+    {
+      "description": "Do not update postgres major versions",
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Do not update @e965/xlsx because this project intentionally uses that fork",
+      "matchPackageNames": ["@e965/xlsx"],
+      "enabled": false
+    }
+  ]
+}
