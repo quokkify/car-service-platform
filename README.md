@@ -92,7 +92,7 @@ The repository uses a modular Django backend, a responsive React staff workspace
 | Local, demo, LAN, and prod-like operation | [`docs/spec/RUNBOOK.md`](docs/spec/RUNBOOK.md) |
 | Scripts index | [`docs/spec/SCRIPTS.md`](docs/spec/SCRIPTS.md) |
 | Current backlog and open decisions | [`docs/spec/TASKS.md`](docs/spec/TASKS.md) · [`docs/spec/OPEN_QUESTIONS.md`](docs/spec/OPEN_QUESTIONS.md) |
-| Test pyramid and latest accepted snapshot | [`docs/testing/test-pyramid.md`](docs/testing/test-pyramid.md) · [`docs/testing/latest/README.md`](docs/testing/latest/README.md) |
+| Test pyramid and latest accepted snapshot | [`docs/testing/test-pyramid.md`](docs/testing/test-pyramid.md) · [`docs/testing/latest/pyramid-snapshot.md`](docs/testing/latest/pyramid-snapshot.md) |
 | Agent and contribution workflow | [`AGENTS.md`](AGENTS.md) |
 | README showcase design system | [`docs/design/readme-showcase/DESIGN.md`](docs/design/readme-showcase/DESIGN.md) |
 

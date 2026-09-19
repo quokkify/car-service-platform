@@ -105,7 +105,7 @@ Then, with a merged Allure results directory (e.g. after CI download or local ru
 ```bash
 node "$ALLURE_CI" pyramid \
   --results path/to/allure-results \
-  --output docs/testing/latest/README.md \
+  --output docs/testing/latest/pyramid-snapshot.md \
   --json docs/testing/latest/pyramid-snapshot.json
 ```
 
@@ -122,7 +122,7 @@ node "$ALLURE_CI" pyramid-check \
 ## FAQ — generated snapshot on `main` looks stale
 
 1. PR reporting is intentionally read-only for PR branches: **Test Report** publishes the trusted Allure artifact and PR comment, but keeps GitHub Pages publication disabled for this repository; it does **not** commit generated docs back to the PR head.
-2. `main` snapshots are refreshed by **Test Pyramid Snapshot Refresh** (`schedule` + `workflow_dispatch`). It runs the test suite on `main`, regenerates `docs/testing/latest/README.md`, `docs/testing/latest/pyramid-snapshot.json`, and `docs/testing/latest/pyramid-quality-gates.json`, then opens/updates the rolling `chore/test-pyramid-snapshot` PR only when those files changed. The root README intentionally stays a stable navigation page and only links to the accepted latest snapshot.
+2. `main` snapshots are refreshed by **Test Pyramid Snapshot Refresh** (`schedule` + `workflow_dispatch`). It runs the test suite on `main`, regenerates `docs/testing/latest/pyramid-snapshot.md`, `docs/testing/latest/pyramid-snapshot.json`, and `docs/testing/latest/pyramid-quality-gates.json`, then opens/updates the rolling `chore/test-pyramid-snapshot` PR only when those files changed. The root README intentionally stays a stable navigation page and only links to the accepted latest snapshot.
 3. **Fix now:** run **Test Pyramid Snapshot Refresh** manually from GitHub Actions, or refresh locally from merged `allure-results` using the command above and open a small PR.
 
 ## Related docs

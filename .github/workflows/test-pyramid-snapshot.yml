@@ -219,7 +219,7 @@ jobs:
           mkdir -p artifacts/allure-results
           node .github/scripts/allure-ci.mjs pyramid \
             --results artifacts/allure-results \
-            --output docs/testing/latest/README.md \
+            --output docs/testing/latest/pyramid-snapshot.md \
             --json docs/testing/latest/pyramid-snapshot.json
           node .github/scripts/allure-ci.mjs pyramid-check \
             --results artifacts/allure-results \
@@ -231,7 +231,7 @@ jobs:
         with:
           name: pyramid-snapshot
           path: |
-            docs/testing/latest/README.md
+            docs/testing/latest/pyramid-snapshot.md
             docs/testing/latest/pyramid-snapshot.json
             docs/testing/latest/pyramid-quality-gates.json
           retention-days: 30
@@ -243,7 +243,7 @@ jobs:
           set -euo pipefail
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           paths=(
-            docs/testing/latest/README.md
+            docs/testing/latest/pyramid-snapshot.md
             docs/testing/latest/pyramid-snapshot.json
             docs/testing/latest/pyramid-quality-gates.json
           )
