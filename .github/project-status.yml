@@ -1,0 +1,14 @@
+schema_version: 1
+project: car-service-platform
+maturity: beta
+implementation: active
+production_readiness: not-certified
+supported_runtime:
+  backend: Python 3.12+ / Django 6 / DRF
+  frontend: Node.js 22+ / React / Vite
+  services: PostgreSQL 18 / Docker Compose
+current_release: v1.4.1
+known_gaps:
+  - Production deployment and operational certification are not part of this repository contract.
+  - Full Docker/E2E and Allure verification depends on external service resources.
+next_milestone: Complete production-readiness review and document supported deployment evidence.
