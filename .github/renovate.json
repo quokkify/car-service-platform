@@ -37,7 +37,9 @@
     {
       "customType": "regex",
       "description": "Default Node.js major in composite setup-node action",
-      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"],
+      "managerFilePatterns": [
+        "/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"
+      ],
       "matchStrings": [
         "(?m)node-version:[\\s\\S]*?default:\\s*\\\"(?<currentValue>[0-9]+)\\\""
       ],
@@ -48,7 +50,9 @@
     {
       "customType": "regex",
       "description": "Default Python major.minor in composite setup-python action",
-      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-python\\/action\\.ya?ml$/"],
+      "managerFilePatterns": [
+        "/^\\.github\\/actions\\/setup-python\\/action\\.ya?ml$/"
+      ],
       "matchStrings": [
         "(?m)python-version:[\\s\\S]*?default:\\s*\\\"(?<currentValue>[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)\\\""
       ],
