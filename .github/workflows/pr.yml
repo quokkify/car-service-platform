@@ -3,10 +3,6 @@ name: PR Pipeline
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "LICENSE"
 
 # Same PR = one group. Do not cancel in-progress runs: canceling mid-run drops some job artifacts;
 # merged Allure would miss suites from jobs that had not finished uploading (misleading report).
@@ -33,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-java-gradle@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/setup-java-gradle@v2.21.6 # v2.21.6
         with:
           java-version: "21"
           distribution: temurin
@@ -80,7 +76,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -96,7 +92,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Frontend allure-results
         working-directory: frontend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
         if: always()
         with:
           working-directory: frontend
@@ -135,7 +131,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -148,7 +144,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh "Client Portal Status" allure-results
         working-directory: frontend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
         if: always()
         with:
           working-directory: frontend
@@ -187,7 +183,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-python@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/setup-python@v2.21.6 # v2.21.6
         with:
           python-version: "3.14"
           working-directory: backend
@@ -221,7 +217,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Backend allure-results
         working-directory: backend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
         if: always()
         with:
           working-directory: backend
@@ -273,7 +269,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -300,7 +296,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/project-toolkit/actions/compose-up@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/compose-up@v2.21.6 # v2.21.6
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -349,7 +345,7 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
         run: bash scripts/ci/e2e-docker-stats-summarize.sh
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@b13b2d1604dbde783d0ee23ac01f41c1853fd665 # v2.21.5
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
         if: always()
         with:
           working-directory: frontend
@@ -419,3 +415,21 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose down -v
+
+  complete:
+    name: PR pipeline complete
+    if: always()
+    needs:
+      - datafaker-generator
+      - frontend
+      - frontend-portal-status
+      - backend
+      - e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every project check to pass
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          jq -e 'all(.[]; .result == "success")' <<<"$NEEDS_JSON"

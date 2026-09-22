@@ -1,13 +1,18 @@
-_commit: v2.21.5
+_commit: v2.21.6
 _src_path: https://github.com/quokkify/project-toolkit.git
-allure_report: false
+allure_categories_file: .github/allure/categories.json
+allure_external_artifact_max_count: 5
+allure_external_artifact_min_count: 5
+allure_external_artifact_prefix: allure-results-
+allure_external_workflow_name: PR Pipeline
+allure_external_workflow_path: .github/workflows/pr.yml
+allure_publish_pages: false
+allure_report: true
 codeql: true
-codeql_languages: []
-components:
--   path: backend
-    type: python
--   path: frontend
-    type: node
+codeql_languages:
+  - python
+  - javascript-typescript
+components: []
 docker: false
 project_name: Car Service Platform
 release_mode: single
@@ -15,8 +20,8 @@ release_please: true
 renovate: true
 renovate_config_repository: quokkify/renovate-presets
 renovate_presets:
-- default
-- github-actions
-- python
-- javascript
-toolkit_version: v2.21.5
+  - default
+  - github-actions
+  - python
+  - javascript
+toolkit_version: v2.21.6

@@ -311,7 +311,7 @@ class ImportDatafakerDemoCommandTests(TestCase):
         )
         payload["purchases"].append(
             {
-                "key": "purchase-002-1",
+                "key": "p2",
                 "supplier_key": "supplier-1",
                 "vehicle_key": "vehicle-001",
                 "repair_key": "repair-002",
