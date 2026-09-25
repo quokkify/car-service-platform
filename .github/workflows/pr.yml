@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-java-gradle@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/setup-java-gradle@v2.22.0 # v2.21.6
         with:
           java-version: "21"
           distribution: temurin
@@ -76,7 +76,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.22.0 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -92,7 +92,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Frontend allure-results
         working-directory: frontend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.22.0 # v2.21.6
         if: always()
         with:
           working-directory: frontend
@@ -131,7 +131,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.22.0 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -144,7 +144,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh "Client Portal Status" allure-results
         working-directory: frontend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.22.0 # v2.21.6
         if: always()
         with:
           working-directory: frontend
@@ -183,7 +183,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-python@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/setup-python@v2.22.0 # v2.21.6
         with:
           python-version: "3.14"
           working-directory: backend
@@ -217,7 +217,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Backend allure-results
         working-directory: backend
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.22.0 # v2.21.6
         if: always()
         with:
           working-directory: backend
@@ -269,7 +269,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: quokkify/project-toolkit/actions/setup-node@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/setup-node@v2.22.0 # v2.21.6
         with:
           node-version: "24"
           working-directory: frontend
@@ -296,7 +296,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/project-toolkit/actions/compose-up@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/compose-up@v2.22.0 # v2.21.6
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -345,7 +345,7 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
         run: bash scripts/ci/e2e-docker-stats-summarize.sh
 
-      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.21.6 # v2.21.6
+      - uses: quokkify/project-toolkit/actions/junit-step-summary@v2.22.0 # v2.21.6
         if: always()
         with:
           working-directory: frontend
