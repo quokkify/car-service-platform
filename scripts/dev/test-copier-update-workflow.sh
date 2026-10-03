@@ -60,7 +60,7 @@ if (cd "${fixture}/repo" && "${UPDATE_SCRIPT}") >"${fixture}/unreleased.out" 2>&
   exit 1
 fi
 grep -F -- 'Ref must identify a published, non-draft, non-prerelease release: v9.9.9' "${fixture}/unreleased.out" >/dev/null
-grep -F -- 'release view v9.9.9 --repo quokkify/project-toolkit --json tagName,isDraft,isPrerelease,publishedAt' "${GH_CALL_LOG}" >/dev/null
+grep -F -- 'release view v9.9.9 --repo quokkify/ci-kit --json tagName,isDraft,isPrerelease,publishedAt' "${GH_CALL_LOG}" >/dev/null
 if [[ -s "${COPIER_CALL_LOG}" ]]; then
   echo "FAIL: Copier ran before the release guard rejected the tag" >&2
   exit 1
@@ -80,7 +80,7 @@ if (cd "${fixture}/repo" && "${UPDATE_SCRIPT}") >"${fixture}/published.out" 2>&1
   echo "FAIL: Copier control boundary unexpectedly succeeded" >&2
   exit 1
 fi
-grep -F -- 'Updating to project-toolkit v9.9.9' "${fixture}/published.out" >/dev/null
+grep -F -- 'Updating to ci-kit v9.9.9' "${fixture}/published.out" >/dev/null
 grep -F -- '--vcs-ref v9.9.9' "${COPIER_CALL_LOG}" >/dev/null
 
 # Run the production commit/push path against a local bare remote. Copier only

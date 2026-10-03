@@ -23,17 +23,17 @@ docker run --rm \
 
 echo ""
 echo "=== Quick checks (shared presets + toolkit ownership) ==="
-if grep -F 'github>quokkify/project-toolkit//renovate/default' "$ROOT/.github/renovate.json" >/dev/null; then
-  echo "OK: project-toolkit Renovate preset is enabled"
+if grep -F 'github>quokkify/ci-kit//renovate/default' "$ROOT/.github/renovate.json" >/dev/null; then
+  echo "OK: ci-kit Renovate preset is enabled"
 else
-  echo "FAIL: project-toolkit Renovate preset is missing from .github/renovate.json"
+  echo "FAIL: ci-kit Renovate preset is missing from .github/renovate.json"
   exit 1
 fi
 
-if grep -R -E 'quokkify/project-toolkit/[^@]+@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/.github/workflows" >/dev/null; then
+if grep -R -E 'quokkify/ci-kit/[^@]+@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/.github/workflows" >/dev/null; then
   echo "OK: toolkit workflow/action references are immutable SHAs with release comments"
 else
-  echo "FAIL: no immutable project-toolkit workflow/action reference found"
+  echo "FAIL: no immutable ci-kit workflow/action reference found"
   exit 1
 fi
 
