@@ -3,13 +3,13 @@ set -euo pipefail
 
 ref="${TEMPLATE_REF:-}"
 if [[ -z "$ref" ]]; then
-  ref="$(gh release view --repo quokkify/project-toolkit --json tagName --jq .tagName)"
+  ref="$(gh release view --repo quokkify/ci-kit --json tagName --jq .tagName)"
 fi
 if [[ ! "$ref" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Ref must be an exact released project-toolkit tag: $ref" >&2
+  echo "Ref must be an exact released ci-kit tag: $ref" >&2
   exit 2
 fi
-release="$(gh release view "$ref" --repo quokkify/project-toolkit \
+release="$(gh release view "$ref" --repo quokkify/ci-kit \
   --json tagName,isDraft,isPrerelease,publishedAt)"
 if [[ "$(jq -r '.tagName' <<<"$release")" != "$ref" || \
   "$(jq -r '.isDraft' <<<"$release")" != "false" || \
@@ -18,7 +18,7 @@ if [[ "$(jq -r '.tagName' <<<"$release")" != "$ref" || \
   echo "Ref must identify a published, non-draft, non-prerelease release: $ref" >&2
   exit 2
 fi
-echo "Updating to project-toolkit $ref"
+echo "Updating to ci-kit $ref"
 
 git switch -C "$BRANCH"
 git config user.name "github-actions[bot]"

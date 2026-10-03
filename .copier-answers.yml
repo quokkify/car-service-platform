@@ -1,5 +1,5 @@
-_commit: v2.25.0
-_src_path: https://github.com/quokkify/project-toolkit.git
+_commit: v3.0.0
+_src_path: https://github.com/quokkify/ci-kit.git
 allure_categories_file: .github/allure/categories.json
 allure_external_artifact_max_count: 5
 allure_external_artifact_min_count: 5
@@ -16,7 +16,6 @@ components: []
 docker: false
 gitleaks: true
 project_name: Car Service Platform
-q4j_tests: false
 release_mode: single
 release_please: true
 renovate: true
@@ -26,4 +25,5 @@ renovate_presets:
   - github-actions
   - python
   - javascript
-toolkit_version: v2.25.0
+toolkit_version: v3.0.0
+allure_source: auto

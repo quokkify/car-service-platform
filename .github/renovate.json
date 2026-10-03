@@ -7,7 +7,7 @@
     "github>quokkify/renovate-presets//presets/gradle/default",
     "github>quokkify/renovate-presets//presets/docker/default",
     "github>quokkify/renovate-presets//presets/github-actions/default",
-    "github>quokkify/project-toolkit//renovate/default"
+    "github>quokkify/ci-kit//renovate/default"
   ],
   "enabledManagers": [
     "gradle",
@@ -25,13 +25,13 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track immutable project-toolkit workflow refs by their release tag comment",
+      "description": "Track immutable ci-kit workflow refs by their release tag comment",
       "managerFilePatterns": ["/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/"],
       "matchStrings": [
-        "uses:\\s*quokkify/project-toolkit/[^@\\s]+@[0-9a-f]{40}\\s+#\\s*v(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
+        "uses:\\s*quokkify/ci-kit/[^@\\s]+@[0-9a-f]{40}\\s+#\\s*v(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "quokkify/project-toolkit",
+      "depNameTemplate": "quokkify/ci-kit",
       "versioningTemplate": "semver"
     },
     {
