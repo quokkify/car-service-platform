@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.3](https://github.com/quokkify/car-service-platform/compare/v1.4.2...v1.4.3) (2026-10-09)
+
+
+### 🐛 Bug Fixes
+
+* **template:** align release helper with selected ref ([#260](https://github.com/quokkify/car-service-platform/issues/260)) ([72ed452](https://github.com/quokkify/car-service-platform/commit/72ed452caf1778fd06427bc158d3756e19b600fb))
+
+
+### 📚 Documentation
+
+* **testing:** reference renamed ci-kit in test pyramid guide ([#266](https://github.com/quokkify/car-service-platform/issues/266)) ([878cf4d](https://github.com/quokkify/car-service-platform/commit/878cf4daf577b2fde23d198a3a15ad6b917146bf))
+
 ## [1.4.2](https://github.com/quokkify/car-service-platform/compare/v1.4.1...v1.4.2) (2026-09-19)
 
 
