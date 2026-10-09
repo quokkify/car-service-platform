@@ -1,4 +1,4 @@
-_commit: v3.1.0
+_commit: v3.1.1
 _src_path: https://github.com/quokkify/ci-kit.git
 allure_categories_file: .github/allure/categories.json
 allure_external_artifact_max_count: 5
@@ -25,5 +25,5 @@ renovate_presets:
   - github-actions
   - python
   - javascript
-toolkit_version: v3.1.0
+toolkit_version: v3.1.1
 allure_source: auto
