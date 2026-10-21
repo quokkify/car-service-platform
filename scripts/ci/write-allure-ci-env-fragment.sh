@@ -29,6 +29,7 @@ write_kv_nonempty() {
 
 : > "${OUT}"
 
+write_kv "Module" "${PREFIX}"
 write_kv "Job" "${GITHUB_JOB:-local}"
 
 if [[ "${PREFIX}" == "Frontend" ]]; then
