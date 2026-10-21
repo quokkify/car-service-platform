@@ -112,15 +112,3 @@ jobs:
           else
             git diff --check "$BASE_SHA..$HEAD_SHA"
           fi
-
-  complete:
-    name: Validation pipeline complete
-    if: always()
-    needs: template-contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require the template contract to pass
-        env:
-          CONTRACT_RESULT: ${{ needs.template-contract.result }}
-        run: test "$CONTRACT_RESULT" = success
