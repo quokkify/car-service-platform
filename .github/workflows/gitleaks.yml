@@ -59,8 +59,6 @@ jobs:
           install -m 0755 gitleaks "$RUNNER_TEMP/bin/gitleaks"
       - name: Scan repository
         run: |
-          # This repository has legacy findings in pre-policy history. Scan the
-          # current tree until a separately reviewed history baseline is ready.
           "$RUNNER_TEMP/bin/gitleaks" dir --redact --no-banner --config "$RUNNER_TEMP/gitleaks.toml" --gitleaks-ignore-path "$RUNNER_TEMP/gitleaksignore" .
 
   complete:
@@ -70,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require current-tree scan to pass
+      - name: Require the secret scan to pass
         env:
           SCAN_RESULT: ${{ needs.scan.result }}
         run: test "$SCAN_RESULT" = success

@@ -30,10 +30,10 @@ allure_source: auto
 module: legacy
 handed_off:
   - validate
-codeql_aggregate: false
-gitleaks_job_name: gitleaks
-gitleaks_scan: history
-gitleaks_aggregate: false
+codeql_aggregate: true
+gitleaks_job_name: "Scan current tree (legacy history pending baseline)"
+gitleaks_scan: tree
+gitleaks_aggregate: true
 allure_group_by:
   - epic
   - feature
