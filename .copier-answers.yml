@@ -30,6 +30,11 @@ allure_source: auto
 module: legacy
 handed_off:
   - validate
+  - base
+  - security
+  - release
+  - allure
+  - renovate
 codeql_aggregate: true
 gitleaks_job_name: "Scan current tree (legacy history pending baseline)"
 gitleaks_scan: tree
