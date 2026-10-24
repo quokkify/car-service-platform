@@ -1,4 +1,4 @@
-_commit: v3.11.0
+_commit: v3.11.2
 _src_path: https://github.com/quokkify/ci-kit.git
 allure_categories_file: .github/allure/categories.json
 allure_external_artifact_max_count: 5
@@ -14,4 +14,4 @@ allure_publish_pages: false
 allure_source: external
 module: allure
 project_name: Car Service Platform
-toolkit_version: v3.11.0
+toolkit_version: v3.11.2
