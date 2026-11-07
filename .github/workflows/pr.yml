@@ -25,11 +25,11 @@ jobs:
         working-directory: tools/datafaker-generator
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-java-gradle@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-java-gradle@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           java-version: "21"
           distribution: temurin
@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: datafaker-generator-reports
           retention-days: 14
@@ -72,11 +72,11 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-node@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-node@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           node-version: "24"
           working-directory: frontend
@@ -92,7 +92,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Frontend allure-results
         working-directory: frontend
 
-      - uses: quokkify/ci-kit/actions/junit-step-summary@v4.1.0
+      - uses: quokkify/ci-kit/actions/junit-step-summary@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         if: always()
         with:
           working-directory: frontend
@@ -102,7 +102,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: frontend-test-results
           path: frontend/test-results/
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload Allure results (frontend)
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: allure-results-frontend
           path: frontend/allure-results/
@@ -127,11 +127,11 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-node@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-node@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           node-version: "24"
           working-directory: frontend
@@ -144,7 +144,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh "Client Portal Status" allure-results
         working-directory: frontend
 
-      - uses: quokkify/ci-kit/actions/junit-step-summary@v4.1.0
+      - uses: quokkify/ci-kit/actions/junit-step-summary@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         if: always()
         with:
           working-directory: frontend
@@ -154,7 +154,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: frontend-portal-status-test-results
           path: frontend/test-results/
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload Allure results (client portal status)
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: allure-results-frontend-portal-status
           path: frontend/allure-results/
@@ -179,13 +179,13 @@ jobs:
         working-directory: backend
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-python@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-python@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
-          python-version: "3.14"
+          python-version: "3.15"
           working-directory: backend
           package-manager: pip
           requirements-file: requirements-test.txt
@@ -217,7 +217,7 @@ jobs:
         run: bash ../scripts/ci/write-allure-ci-env-fragment.sh Backend allure-results
         working-directory: backend
 
-      - uses: quokkify/ci-kit/actions/junit-step-summary@v4.1.0
+      - uses: quokkify/ci-kit/actions/junit-step-summary@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         if: always()
         with:
           working-directory: backend
@@ -227,7 +227,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backend-test-results
           path: backend/test-results/
@@ -235,7 +235,7 @@ jobs:
 
       - name: Upload Allure results (backend)
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: allure-results-backend
           path: backend/allure-results/
@@ -265,11 +265,11 @@ jobs:
       E2E_STAFF_EMAIL: staff@autoservice.local
       E2E_STAFF_PASSWORD: staff12345
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-node@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-node@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           node-version: "24"
           working-directory: frontend
@@ -286,7 +286,7 @@ jobs:
         working-directory: frontend
         run: npx playwright install chromium --with-deps
 
-      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
 
       - name: Prepare CSP Compose env
@@ -296,7 +296,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/ci-kit/actions/compose-up@v4.1.0
+      - uses: quokkify/ci-kit/actions/compose-up@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -345,7 +345,7 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
         run: bash scripts/ci/e2e-docker-stats-summarize.sh
 
-      - uses: quokkify/ci-kit/actions/junit-step-summary@v4.1.0
+      - uses: quokkify/ci-kit/actions/junit-step-summary@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         if: always()
         with:
           working-directory: frontend
@@ -359,7 +359,7 @@ jobs:
 
       - name: Upload Allure results (E2E ${{ matrix.title }})
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: allure-results-e2e-${{ matrix.id }}
           path: frontend/allure-results/
@@ -368,7 +368,7 @@ jobs:
 
       - name: Upload Playwright HTML report (${{ matrix.title }})
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-report-${{ matrix.id }}
           path: frontend/playwright-report/
@@ -377,7 +377,7 @@ jobs:
 
       - name: Upload E2E JUnit (Playwright ${{ matrix.title }})
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: e2e-test-results-${{ matrix.id }}
           path: frontend/test-results/e2e-junit.xml
@@ -397,7 +397,7 @@ jobs:
 
       - name: Upload Docker logs (${{ matrix.title }})
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: docker-logs-${{ matrix.id }}
           path: docker-logs/
@@ -405,7 +405,7 @@ jobs:
 
       - name: Upload Docker resource metrics (E2E ${{ matrix.title }})
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: docker-resource-metrics-e2e-${{ matrix.id }}
           path: docker-metrics/

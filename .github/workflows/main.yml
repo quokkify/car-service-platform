@@ -27,11 +27,11 @@ jobs:
         working-directory: tools/datafaker-generator
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-java-gradle@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-java-gradle@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           java-version: "21"
           distribution: temurin
@@ -60,11 +60,11 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-node@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-node@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
           node-version: "24"
           working-directory: frontend
@@ -80,13 +80,13 @@ jobs:
         working-directory: backend
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: quokkify/ci-kit/actions/setup-python@v4.1.0
+      - uses: quokkify/ci-kit/actions/setup-python@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         with:
-          python-version: "3.14"
+          python-version: "3.15"
           working-directory: backend
           package-manager: pip
           requirements-file: requirements.txt
@@ -111,11 +111,11 @@ jobs:
       actions: write # GHA BuildKit cache (docker-compose.ci.cache.yml)
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Prepare CSP Compose env
         shell: bash
@@ -124,7 +124,7 @@ jobs:
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
 
-      - uses: quokkify/ci-kit/actions/compose-up@v4.1.0
+      - uses: quokkify/ci-kit/actions/compose-up@104b4089e02c67412e2fb82bd6782106fb216a8c # v4.2.0
         env:
           DOCKER_BUILDKIT: "1"
           COMPOSE_DOCKER_CLI_BUILD: "1"
