@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.4.3](https://github.com/quokkify/car-service-platform/compare/v1.4.2...v1.4.3) (2026-11-08)
+
+<!-- project-toolkit:release-notes v2 -->
+**At a glance:** 3 fixed · 38 internal
+
+### 🐛 Fixed
+
+- **ci:** name the module in each Allure job fragment ([#280](https://github.com/quokkify/car-service-platform/pull/280))
+- **ci:** restore rendered validate.yml contract ([#275](https://github.com/quokkify/car-service-platform/pull/275))
+- **template:** align release helper with selected ref ([#260](https://github.com/quokkify/car-service-platform/pull/260))
+
+<details><summary>Internal changes (38 PRs)</summary>
+
+**Dependencies**
+
+- @playwright/test 1.61.1 → 1.63.0 ([#251](https://github.com/quokkify/car-service-platform/pull/251))
+- vitest 4.1.10 → 4.1.11 ([#250](https://github.com/quokkify/car-service-platform/pull/250))
+
+**Maintenance**
+
+- **ci-kit:** hand off base, security, release, allure, renovate to modules ([#288](https://github.com/quokkify/car-service-platform/pull/288))
+- **ci-kit:** hand off validate to core module ([#276](https://github.com/quokkify/car-service-platform/pull/276))
+- **ci-kit:** prepare for the legacy template exit ([#287](https://github.com/quokkify/car-service-platform/pull/287))
+- **ci:** refresh test pyramid snapshot ([#252](https://github.com/quokkify/car-service-platform/pull/252))
+- **pr-title:** allow deps type and underscores in scope ([#269](https://github.com/quokkify/car-service-platform/pull/269))
+- **template:** align shared automation ([#256](https://github.com/quokkify/car-service-platform/pull/256))
+- **template:** update project template to v2.23.1 ([#258](https://github.com/quokkify/car-service-platform/pull/258))
+- **template:** update shared project template (25 PRs, [#259](https://github.com/quokkify/car-service-platform/pull/259)–[#293](https://github.com/quokkify/car-service-platform/pull/293))
+- **template:** update shared project template to ci-kit v3.0.0 ([#265](https://github.com/quokkify/car-service-platform/pull/265))
+- **testing:** reference renamed ci-kit in test pyramid guide ([#266](https://github.com/quokkify/car-service-platform/pull/266))
+- **tooling:** activate Copier template automation ([#248](https://github.com/quokkify/car-service-platform/pull/248))
+- **tooling:** adopt project-toolkit automation ([#247](https://github.com/quokkify/car-service-platform/pull/247))
+
+</details>
+
 ## [1.4.2](https://github.com/quokkify/car-service-platform/compare/v1.4.1...v1.4.2) (2026-09-19)
 
 
