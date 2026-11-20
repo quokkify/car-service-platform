@@ -123,6 +123,8 @@ LOGIN_THROTTLE_IP_LIMIT = int(os.environ.get("LOGIN_THROTTLE_IP_LIMIT", "10"))
 LOGIN_THROTTLE_IP_WINDOW_SECONDS = int(os.environ.get("LOGIN_THROTTLE_IP_WINDOW_SECONDS", "60"))
 LOGIN_THROTTLE_ACCOUNT_LIMIT = int(os.environ.get("LOGIN_THROTTLE_ACCOUNT_LIMIT", "10"))
 LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS = int(os.environ.get("LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS", "900"))
+# An IP that signed in to an account successfully stays exempt from that account's limit for this long.
+LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS = int(os.environ.get("LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS", str(60 * 60 * 24 * 30)))
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()

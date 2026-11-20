@@ -1,11 +1,15 @@
 """Regression guards for login throttling (API login and Django admin login)."""
 
+import threading
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
+from django.test.client import RequestFactory
 from rest_framework.test import APIClient
+
+from users import throttling
 
 User = get_user_model()
 
@@ -90,6 +94,29 @@ class LoginThrottleRegressionTests(TestCase):
             response = self._login(password="correctpass123", HTTP_X_REAL_IP="203.0.113.200")
 
         self.assertEqual(response.status_code, 200)
+
+    def test_regression_owner_from_known_ip_is_not_locked_out_by_failures_elsewhere(self):
+        self.assertEqual(self._login(password="correctpass123", HTTP_X_REAL_IP="192.0.2.10").status_code, 200)
+        self.client.post("/api/auth/logout")
+        for attempt in range(5):
+            self._login(HTTP_X_REAL_IP=f"198.51.100.{attempt}")
+
+        stranger = self._login(password="correctpass123", HTTP_X_REAL_IP="203.0.113.200")
+        owner = self._login(password="correctpass123", HTTP_X_REAL_IP="192.0.2.10")
+
+        self.assertEqual(owner.status_code, 200)
+        self.assertEqual(stranger.status_code, 429)
+
+    def test_regression_concurrent_failures_are_all_counted(self):
+        request = RequestFactory().post("/api/auth/login", HTTP_X_REAL_IP="203.0.113.50")
+        workers = [threading.Thread(target=throttling.record_failure, args=(request, None)) for _ in range(50)]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+        key, _limit, _window = throttling._ip_counter(request, throttling.time.time())
+        self.assertEqual(cache.get(key), 50)
 
     def test_account_throttle_does_not_affect_other_accounts(self):
         other = User.objects.create_user(email="other@test.local", password="otherpass123", role="staff")
