@@ -1,10 +1,17 @@
 import base64
+import http.server
+import io
+import os
 import shutil
+import tempfile
+import threading
 import unittest
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
+from pypdf import PdfReader
 from rest_framework.test import APIClient
 
 from customers.models import Customer
@@ -523,6 +530,81 @@ class PurchaseApiTests(TestCase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn("po_existing_supplier_2026-03-20.pdf", response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def _po_pdf(self, supplier_name, part_name):
+        return self.client.post(
+            "/api/purchases/po/pdf/",
+            {
+                "order_date": "2026-03-20",
+                "supplier_name": supplier_name,
+                "lines": [
+                    {"part_name": part_name, "quantity": "1", "purchase_price": "10.00"},
+                ],
+            },
+            format="json",
+        )
+
+    @staticmethod
+    def _pdf_text(content):
+        # Join wrapped table lines so a literal that spans a cell line break can still be matched.
+        return " ".join(" ".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages).split())
+
+    # Regression guard: names with markup characters used to make PO export fail with HTTP 500.
+    def test_purchase_order_pdf_renders_markup_characters_literally(self):
+        self.client.force_authenticate(self.user)
+        self.supplier.name = "Smith & <Sons>"
+        self.supplier.nip = "PL<1>"
+        self.supplier.registered_address = "Main St <5> & Co"
+        self.supplier.save()
+
+        response = self._po_pdf("Smith & <Sons>", "Filter a<b <b>bold &amp; done")
+
+        self.assertEqual(response.status_code, 200)
+        text = self._pdf_text(response.content)
+        for literal in ("Smith & <Sons>", "PL<1>", "Main St <5> & Co", "Filter a<b <b>bold &amp; done"):
+            self.assertIn(literal, text)
+
+    # Regression guard: an <img> tag in user text must stay text — no local file is read into the PDF.
+    def test_purchase_order_pdf_does_not_embed_local_file_from_img_markup(self):
+        self.client.force_authenticate(self.user)
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = os.path.join(tmp, "probe.png")
+            Image.new("RGB", (4, 4), (255, 0, 0)).save(image_path)
+            markup = f'<img src="{image_path}" width="4" height="4"/>'
+
+            response = self._po_pdf("Existing Supplier", markup)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"/Subtype /Image", response.content)
+        self.assertIn(markup, self._pdf_text(response.content))
+
+    # Regression guard: an <img> URL in user text must not make the server issue an outbound request.
+    def test_purchase_order_pdf_does_not_fetch_url_from_img_markup(self):
+        self.client.force_authenticate(self.user)
+        requests_seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 — stdlib hook name
+                requests_seen.append(self.path)
+                self.send_response(404)
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            markup = f'<img src="http://127.0.0.1:{server.server_address[1]}/probe.png" width="4" height="4"/>'
+            response = self._po_pdf("Existing Supplier", markup)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(requests_seen, [])
+        self.assertIn(markup, self._pdf_text(response.content))
 
     def test_purchase_order_pdf_requires_lines(self):
         self.client.force_authenticate(self.user)

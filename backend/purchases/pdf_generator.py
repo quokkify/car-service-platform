@@ -4,6 +4,7 @@ import os
 from decimal import Decimal
 from io import BytesIO
 from typing import Any, Sequence
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -89,10 +90,10 @@ def _info_block(payload: dict[str, Any], font: str, width: float) -> Table:
     supplier_nip = (payload.get("supplier_nip") or "").strip() or "-"
     registered_address = (payload.get("supplier_registered_address") or "").strip() or "-"
     rows = [
-        [Paragraph("SUPPLIER", s["label"]), Paragraph(payload["supplier_name"], s["value"])],
-        [Paragraph("NIP", s["label"]), Paragraph(supplier_nip, s["value"])],
-        [Paragraph("REG. ADDRESS", s["label"]), Paragraph(registered_address, s["value"])],
-        [Paragraph("REQUESTED DELIVERY", s["label"]), Paragraph(delivery, s["value"])],
+        [Paragraph("SUPPLIER", s["label"]), Paragraph(escape(payload["supplier_name"]), s["value"])],
+        [Paragraph("NIP", s["label"]), Paragraph(escape(supplier_nip), s["value"])],
+        [Paragraph("REG. ADDRESS", s["label"]), Paragraph(escape(registered_address), s["value"])],
+        [Paragraph("REQUESTED DELIVERY", s["label"]), Paragraph(escape(delivery), s["value"])],
     ]
     table = Table(rows, colWidths=[42 * mm, width - 42 * mm])
     table.setStyle(TableStyle([
@@ -110,11 +111,12 @@ def _items_table(lines: Sequence[dict[str, Any]], font: str, width: float) -> tu
     def th(text: str) -> Paragraph:
         return Paragraph(text, s["th"])
 
+    # Cell text is user/catalog data, never markup: escape it so reportlab renders it literally.
     def td(text: str) -> Paragraph:
-        return Paragraph(text, s["td"])
+        return Paragraph(escape(text), s["td"])
 
     def td_r(text: str) -> Paragraph:
-        return Paragraph(text, s["td_right"])
+        return Paragraph(escape(text), s["td_right"])
 
     data = [[th("Item"), th("Qty"), th("Unit"), th("Unit cost"), th("Total")]]
     grand_total = Decimal("0")
