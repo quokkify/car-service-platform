@@ -414,6 +414,87 @@ class PurchaseApiTests(TestCase):
         self.assertIsNone(purchase.current_stock_quantity)
         self.assertIsNone(purchase.inventory_checked_on)
 
+    # Regression guard: invoice_url is rendered as a link (staff UI, Django admin), so only a stored
+    # /media/ path or an https URL is accepted; script-capable or other schemes are refused.
+    def test_invoice_url_rejects_non_media_non_https_values(self):
+        self.client.force_authenticate(self.user)
+        rejected = [
+            "javascript:void(0)",
+            " JavaScript:void(0)",
+            "data:text/plain,invoice",
+            "http://example.com/inv.pdf",
+            "//example.com/inv.pdf",
+            "/media/../admin/",
+            "/api/purchases/",
+            "https:/no-host",
+        ]
+        purchase = Purchase.objects.create(
+            order_date="2026-03-20",
+            supplier=self.supplier,
+            unit_of_measure=self.uom_pcs,
+            part_name="Brake Disc",
+            quantity=1,
+            purchase_price="10.00",
+        )
+        for value in rejected:
+            with self.subTest(value=value):
+                create = self.client.post(
+                    "/api/purchases/", self._purchase_payload(invoice_url=value), format="json"
+                )
+                self.assertEqual(create.status_code, 400)
+                self.assertIn("invoice_url", create.json())
+
+                update = self.client.patch(
+                    f"/api/purchases/{purchase.id}", {"invoice_url": value}, format="json"
+                )
+                self.assertEqual(update.status_code, 400)
+                self.assertIn("invoice_url", update.json())
+
+                bulk = self.client.post(
+                    "/api/purchases/bulk/",
+                    {
+                        "order_date": "2026-04-01",
+                        "supplier_name": "Bulk Supplier",
+                        "invoice_url": value,
+                        "lines": [{"part_name": "Part A", "quantity": 1, "purchase_price": "10.00"}],
+                    },
+                    format="json",
+                )
+                self.assertEqual(bulk.status_code, 400)
+                self.assertIn("invoice_url", bulk.json())
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.invoice_url, "")
+        self.assertFalse(Purchase.objects.exclude(invoice_url="").exists())
+
+    def test_invoice_url_accepts_media_path_https_and_blank(self):
+        self.client.force_authenticate(self.user)
+        for value in ("/media/invoices/abc123.pdf", "https://files.example.com/inv.pdf", ""):
+            with self.subTest(value=value):
+                response = self.client.post(
+                    "/api/purchases/", self._purchase_payload(invoice_url=value), format="json"
+                )
+                self.assertEqual(response.status_code, 201, response.content)
+                self.assertEqual(response.json()["invoice_url"], value)
+
+    # Regression guard: rows stored before validation existed must not become clickable links in admin.
+    def test_admin_invoice_link_only_links_allowed_urls(self):
+        from django.contrib import admin as django_admin
+
+        from .admin import PurchaseAdmin
+
+        model_admin = PurchaseAdmin(Purchase, django_admin.site)
+        purchase = Purchase(invoice_url="javascript:void(0)")
+        rendered = str(model_admin.invoice_link(purchase))
+        self.assertNotIn("<a", rendered)
+        self.assertNotIn('href="javascript', rendered)
+
+        purchase.invoice_url = "/media/invoices/abc.pdf"
+        rendered = str(model_admin.invoice_link(purchase))
+        self.assertIn('href="/media/invoices/abc.pdf"', rendered)
+
+        purchase.invoice_url = ""
+        self.assertEqual(model_admin.invoice_link(purchase), "—")
+
     def test_purchase_order_pdf_returns_pdf(self):
         self.client.force_authenticate(self.user)
         self.supplier.registered_address = "Supplier HQ, Warsaw"

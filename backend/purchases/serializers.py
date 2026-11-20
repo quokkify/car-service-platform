@@ -4,10 +4,25 @@ from rest_framework import serializers
 
 from vehicles.models import Vehicle
 
-from .models import InvoiceLineParseTemplate, Purchase, Supplier, SupplierAlias, UnitOfMeasure, supplier_alias_normalize
+from .models import (
+    InvoiceLineParseTemplate,
+    Purchase,
+    Supplier,
+    SupplierAlias,
+    UnitOfMeasure,
+    is_allowed_invoice_url,
+    supplier_alias_normalize,
+)
 from .invoice_line_parse import REQUIRED_REGEX_GROUPS, SUPPLIER_REGEX_GROUP, compile_line_pattern, compile_pattern_or_raise
 
 MAX_PURCHASE_BULK_LINES = 100
+INVOICE_URL_ERROR = "Invoice URL must be an uploaded /media/ file or an https:// link."
+
+
+def validate_invoice_url_value(value):
+    if not is_allowed_invoice_url(value):
+        raise serializers.ValidationError(INVOICE_URL_ERROR)
+    return value
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -141,6 +156,9 @@ class PurchaseSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "created_at", "updated_at")
 
+    def validate_invoice_url(self, value):
+        return validate_invoice_url_value(value)
+
     def _resolve_supplier(self, validated_data):
         supplier_name = validated_data.pop("supplier_name", None)
         if supplier_name and "supplier" not in validated_data:
@@ -252,6 +270,9 @@ class PurchaseBulkCreateSerializer(serializers.Serializer):
         if not text:
             raise serializers.ValidationError("Supplier name is required.")
         return text
+
+    def validate_invoice_url(self, value):
+        return validate_invoice_url_value(value)
 
     def validate_lines(self, value):
         if not value:
