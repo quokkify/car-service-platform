@@ -29,17 +29,17 @@ class SeedAdminRegressionTests(TestCase):
 
     @override_settings(DEBUG=False, ADMIN_EMAIL="owner@example.com", ADMIN_PASSWORD=STRONG_PASSWORD)
     def test_regression_does_not_reset_password_of_existing_admin(self):
-        User.objects.create_superuser(email="owner@example.com", password="rotated-by-operator-123")
+        User.objects.create_superuser(email="owner@example.com", password="rotated-pass-1")
 
         output = self._run()
 
         admin = User.objects.get(email="owner@example.com")
-        self.assertTrue(admin.check_password("rotated-by-operator-123"))
+        self.assertTrue(admin.check_password("rotated-pass-1"))
         self.assertIn("already exists", output)
 
     @override_settings(DEBUG=False, ADMIN_EMAIL="Owner@Example.com", ADMIN_PASSWORD=STRONG_PASSWORD)
     def test_regression_does_not_reactivate_deactivated_admin(self):
-        admin = User.objects.create_superuser(email="owner@example.com", password="rotated-by-operator-123")
+        admin = User.objects.create_superuser(email="owner@example.com", password="rotated-pass-1")
         admin.is_active = False
         admin.save(update_fields=["is_active"])
 
@@ -89,14 +89,14 @@ class SeedStaffRegressionTests(TestCase):
 
     @override_settings(DEBUG=False, STAFF_EMAIL="master@example.com", STAFF_PASSWORD=STRONG_PASSWORD)
     def test_regression_does_not_reset_or_reactivate_existing_staff(self):
-        staff = User.objects.create_user(email="master@example.com", password="own-password-123", role="staff")
+        staff = User.objects.create_user(email="master@example.com", password="own-pass-1", role="staff")
         staff.is_active = False
         staff.save(update_fields=["is_active"])
 
         self._run()
 
         staff.refresh_from_db()
-        self.assertTrue(staff.check_password("own-password-123"))
+        self.assertTrue(staff.check_password("own-pass-1"))
         self.assertFalse(staff.is_active)
 
     @override_settings(DEBUG=False, STAFF_EMAIL="master@example.com", STAFF_PASSWORD="staff12345")
