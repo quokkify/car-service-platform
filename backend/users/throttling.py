@@ -2,7 +2,11 @@
 
 Two fixed-window counters are kept in Django's cache: one per client IP and one per account (normalized email).
 Only failures count. A blocked request is answered with 429 before credentials are checked, so the window cannot
-be used to probe passwords. Windows expire on their own; there is no permanent lockout.
+be used to probe passwords. Windows expire on their own; there is no permanent lockout, but whoever keeps failing
+against an account keeps it throttled for the current window (accepted trade-off against distributed guessing).
+
+Updates are read-then-write rather than atomic, so concurrent failures can exceed a limit by a few attempts. This
+keeps window expiry correct on every cache backend (DatabaseCache.incr would reset the timeout).
 """
 
 import hashlib

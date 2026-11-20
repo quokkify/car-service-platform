@@ -93,11 +93,17 @@ FRONTEND_URL=https://<frontend-domain>.up.railway.app
 > `ADMIN_PASSWORD` / `STAFF_PASSWORD` only create missing accounts; rotate existing ones with
 > `railway run python manage.py changepassword <email>` (or the Django admin).
 
-> **Client IP:** Railway's edge overwrites `X-Real-IP` with the client address and does not publish its
-> proxy ranges, so the frontend trusts `X-Real-IP` from any peer (`NGINX_TRUSTED_REAL_IP_FROM`) and forwards it
-> to Django, which reads `X-Real-IP` by default. The frontend is only reachable through the edge; traffic over
-> `*.railway.internal` is trusted by design. Without this variable every client shares the edge address and
-> the per-IP login limit applies to all users together.
+> **Client IP:** Railway documents `X-Real-IP` as the header identifying the client's address
+> ([specs and limits](https://docs.railway.com/networking/public-networking/specs-and-limits)) but publishes no
+> edge address ranges, so the frontend trusts `X-Real-IP` from any peer (`NGINX_TRUSTED_REAL_IP_FROM`) and
+> forwards it to Django, which reads `X-Real-IP` by default (`DJANGO_CLIENT_IP_HEADER`). Without this variable
+> every client shares the edge address and the per-IP login limit applies to all users together.
+>
+> Whether the edge **replaces** a client-sent `X-Real-IP` is not documented. Check once after deploying:
+> `curl -s -o /dev/null -H 'X-Real-IP: 203.0.113.9' https://<frontend-domain>/api/health`, then look at the
+> frontend service log line for that request. Your own address there means the edge replaced the header; `203.0.113.9`
+> means it passes client values through — then remove `NGINX_TRUSTED_REAL_IP_FROM`, because the per-IP limit
+> could be evaded. The per-account limit does not depend on the IP source either way.
 
 ### 6. Set custom domain (optional)
 

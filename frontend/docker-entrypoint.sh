@@ -10,6 +10,8 @@ if [ -n "${NGINX_TRUSTED_REAL_IP_FROM:-}" ]; then
   for cidr in $(echo "${NGINX_TRUSTED_REAL_IP_FROM}" | tr ',' ' '); do
     echo "set_real_ip_from ${cidr};" >> "${realip_conf}"
   done
+elif [ -n "${RAILWAY_ENVIRONMENT:-}" ]; then
+  echo "WARNING: NGINX_TRUSTED_REAL_IP_FROM is empty on Railway: all clients share the edge address for per-IP login limits (see docs/spec/RAILWAY_DEPLOY.md)." >&2
 fi
 
 exec nginx -g 'daemon off;'

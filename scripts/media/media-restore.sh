@@ -59,7 +59,8 @@ echo "Restoring from: ${BACKUP_FILE}"
 gunzip -c "${BACKUP_FILE}" | docker compose run --rm --no-deps -T --entrypoint tar backend xf - -C /app
 
 echo "Starting backend..."
-docker compose up -d backend
+# Restart the stopped container with its own configuration (dev or prod-like); `up` would recreate it from the base file only.
+docker compose start backend
 
 echo ""
 echo "Media restore complete."
