@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 
 from django.contrib.auth import get_user_model
@@ -1114,6 +1115,128 @@ class InvoiceParseApiTests(TestCase):
         self.assertEqual(body["supplier_resolution"]["match"], "alias")
         self.assertEqual(body["supplier_resolution"]["resolved_name"], "Canonical Sp z o.o.")
         self.assertEqual(body["supplier_resolution"]["supplier_id"], canonical.id)
+
+    # Regression guard: a staff-supplied pattern with catastrophic backtracking used to pin the worker.
+    # It must now fail fast with a 400 instead of hanging or returning 500.
+    SLOW_LINE_PATTERN = r"(?P<part_name>(?:a|aa)+)b(?P<quantity>\d)(?P<purchase_price>\d)"
+
+    def test_preview_pathological_line_pattern_returns_400_within_time_bound(self):
+        self.client.force_authenticate(self.staff)
+        started = time.monotonic()
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"raw_text": "a" * 48, "line_pattern": self.SLOW_LINE_PATTERN},
+            format="json",
+        )
+
+        elapsed = time.monotonic() - started
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long to evaluate", response.json()["detail"])
+        self.assertLess(elapsed, 5)
+
+    def test_preview_pathological_supplier_pattern_returns_400_within_time_bound(self):
+        template = InvoiceLineParseTemplate.objects.filter(name="Pipe table (demo PL)").first()
+        self.assertIsNotNone(template)
+        self.client.force_authenticate(self.staff)
+        started = time.monotonic()
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {
+                "raw_text": "a" * 48,
+                "template_id": template.pk,
+                "supplier_pattern": r"(?P<supplier_name>(?:a|aa)+)b",
+            },
+            format="json",
+        )
+
+        elapsed = time.monotonic() - started
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long to evaluate", response.json()["detail"])
+        self.assertLess(elapsed, 5)
+
+    def test_preview_rejects_overlong_pattern_and_text(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS, MAX_REGEX_PATTERN_CHARS
+
+        self.client.force_authenticate(self.staff)
+        long_pattern = r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)" + "x?" * MAX_REGEX_PATTERN_CHARS
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"raw_text": "Filter 1 10", "line_pattern": long_pattern},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("line_pattern", response.json())
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {
+                "raw_text": "Filter 1 10\n" * (MAX_INVOICE_TEXT_CHARS // 10),
+                "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("raw_text", response.json())
+
+    def test_suggest_rejects_overlong_text(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS
+
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(
+            "/api/purchases/invoice-parse/suggest/",
+            {"raw_text": "x" * (MAX_INVOICE_TEXT_CHARS + 1)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    # Regression guard: extracted file text is capped too, not only pasted text.
+    def test_preview_rejects_overlong_text_extracted_from_file(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS
+
+        self.client.force_authenticate(self.staff)
+        upload = SimpleUploadedFile("invoice.txt", b"y" * (MAX_INVOICE_TEXT_CHARS + 1), content_type="text/plain")
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"file": upload, "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)"},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long", response.json()["detail"])
+
+    # Regression guard: OCR/extract endpoints enforce the same per-file cap as the invoice upload.
+    def test_parse_endpoints_reject_oversized_file(self):
+        from .invoice_parse.constants import MAX_INVOICE_PARSE_FILE_BYTES
+
+        self.client.force_authenticate(self.staff)
+        for url, extra in (
+            ("/api/purchases/invoice-parse/extract/", {}),
+            ("/api/purchases/invoice-parse/suggest/", {}),
+            ("/api/purchases/invoice-parse/preview/", {"line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)"}),
+        ):
+            with self.subTest(url=url):
+                upload = SimpleUploadedFile(
+                    "invoice.txt", b"z" * (MAX_INVOICE_PARSE_FILE_BYTES + 1), content_type="text/plain"
+                )
+                response = self.client.post(url, {"file": upload, **extra}, format="multipart")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("file", response.json())
+
+    def test_template_rejects_overlong_pattern(self):
+        from .invoice_parse.constants import MAX_REGEX_PATTERN_CHARS
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/purchases/invoice-parse-templates/",
+            {
+                "name": "Too long",
+                "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)" + "x?" * MAX_REGEX_PATTERN_CHARS,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("line_pattern", response.json())
 
     def test_suggest_returns_pattern_for_multi_line_demo(self):
         self.client.force_authenticate(self.staff)

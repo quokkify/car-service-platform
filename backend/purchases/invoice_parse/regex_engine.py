@@ -4,32 +4,66 @@ from __future__ import annotations
 
 import decimal
 import logging
-import re
+import time
 from typing import Any
 
-from .constants import REQUIRED_REGEX_GROUPS, SUPPLIER_REGEX_GROUP
+# ``regex`` instead of ``re``: same syntax, but matching accepts a timeout, so a pattern with
+# catastrophic backtracking cannot stall the worker.
+import regex
+
+from .constants import (
+    MAX_REGEX_PATTERN_CHARS,
+    REGEX_TIME_BUDGET_SECONDS,
+    REQUIRED_REGEX_GROUPS,
+    SUPPLIER_REGEX_GROUP,
+)
 from .decimal_norm import normalize_decimal
 
 logger = logging.getLogger(__name__)
 
 
-def compile_pattern_or_raise(pattern: str) -> re.Pattern[str]:
+class RegexLimitError(ValueError):
+    """Pattern rejected by a size or time limit; the message is safe to show to the client."""
+
+
+def new_regex_deadline() -> float:
+    return time.monotonic() + REGEX_TIME_BUDGET_SECONDS
+
+
+def _search(rx: regex.Pattern, text: str, deadline: float):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RegexLimitError("Pattern took too long to evaluate; simplify the pattern.")
     try:
-        return re.compile(pattern)
-    except re.error as exc:
+        return rx.search(text, timeout=remaining)
+    except TimeoutError as exc:
+        raise RegexLimitError("Pattern took too long to evaluate; simplify the pattern.") from exc
+
+
+def compile_pattern_or_raise(pattern: str) -> regex.Pattern:
+    if len(pattern) > MAX_REGEX_PATTERN_CHARS:
+        raise RegexLimitError(f"Pattern is too long (max {MAX_REGEX_PATTERN_CHARS} characters).")
+    try:
+        return regex.compile(pattern)
+    except regex.error as exc:
         raise ValueError(f"Invalid regex: {exc}") from exc
 
 
-def compile_line_pattern(pattern: str) -> re.Pattern[str]:
+def compile_line_pattern(pattern: str) -> regex.Pattern:
     return compile_pattern_or_raise(pattern)
 
 
-def parse_invoice_lines(raw_text: str, pattern: str) -> tuple[list[dict[str, Any]], list[str]]:
+def parse_invoice_lines(
+    raw_text: str, pattern: str, deadline: float | None = None
+) -> tuple[list[dict[str, Any]], list[str]]:
     """
     Scan each non-empty line; if the regex finds a match with required named groups, emit one row.
 
     Each emitted row: part_name (str), quantity (int), purchase_price (str decimal).
+    Raises ``RegexLimitError`` when matching exceeds the time budget (``deadline``, monotonic seconds).
     """
+    if deadline is None:
+        deadline = new_regex_deadline()
     rx = compile_line_pattern(pattern)
     try:
         groupindex = rx.groupindex
@@ -48,7 +82,7 @@ def parse_invoice_lines(raw_text: str, pattern: str) -> tuple[list[dict[str, Any
             continue
         if set(line) <= {"-", "=", "|", "."}:
             continue
-        m = rx.search(line)
+        m = _search(rx, line, deadline)
         if not m:
             continue
         gd = m.groupdict()
@@ -92,16 +126,24 @@ def parse_invoice_lines(raw_text: str, pattern: str) -> tuple[list[dict[str, Any
     return lines_out, warnings
 
 
-def extract_supplier(raw_text: str, supplier_pattern: str | None) -> tuple[str | None, list[str]]:
+def extract_supplier(
+    raw_text: str, supplier_pattern: str | None, deadline: float | None = None
+) -> tuple[str | None, list[str]]:
     """
     Run one regex over the full OCR/text document; must define named group supplier_name.
+
+    Raises ``RegexLimitError`` when the pattern is too long or matching exceeds the time budget.
     """
     warnings: list[str] = []
     pat = (supplier_pattern or "").strip()
     if not pat:
         return None, warnings
+    if deadline is None:
+        deadline = new_regex_deadline()
     try:
         rx = compile_pattern_or_raise(pat)
+    except RegexLimitError:
+        raise
     except ValueError as exc:
         logger.debug("Supplier regex invalid: %s", exc)
         warnings.append("Supplier regex pattern is invalid.")
@@ -109,7 +151,7 @@ def extract_supplier(raw_text: str, supplier_pattern: str | None) -> tuple[str |
     if SUPPLIER_REGEX_GROUP not in rx.groupindex:
         warnings.append(f"Supplier regex must define named group (?P<{SUPPLIER_REGEX_GROUP}>…).")
         return None, warnings
-    m = rx.search(raw_text)
+    m = _search(rx, raw_text, deadline)
     if not m:
         warnings.append("Supplier regex did not match the document text.")
         return None, warnings
@@ -142,8 +184,9 @@ SUPPLIER_PATTERN_CANDIDATES: list[tuple[str, str]] = [
 
 def suggest_supplier_pattern(raw_text: str) -> tuple[str | None, str | None]:
     """Return (pattern, preview_supplier_name) or (None, None)."""
+    deadline = new_regex_deadline()
     for _label, pattern in SUPPLIER_PATTERN_CANDIDATES:
-        name, _w = extract_supplier(raw_text, pattern)
+        name, _w = extract_supplier(raw_text, pattern, deadline)
         if name:
             return pattern, name
     return None, None
@@ -176,9 +219,12 @@ def suggest_line_pattern(raw_text: str) -> tuple[str | None, str | None, list[di
     Returns (pattern, candidate_name, preview_lines) or (None, None, []).
     """
     best: tuple[int, str, str, list[dict[str, Any]]] | None = None
+    deadline = new_regex_deadline()
     for label, pattern, minimum in SUGGESTION_CANDIDATES:
         try:
-            rows, _warnings = parse_invoice_lines(raw_text, pattern)
+            rows, _warnings = parse_invoice_lines(raw_text, pattern, deadline)
+        except RegexLimitError:
+            raise
         except ValueError:
             continue
         if len(rows) < minimum:

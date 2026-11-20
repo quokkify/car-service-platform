@@ -13,7 +13,16 @@ from .models import (
     is_allowed_invoice_url,
     supplier_alias_normalize,
 )
-from .invoice_line_parse import REQUIRED_REGEX_GROUPS, SUPPLIER_REGEX_GROUP, compile_line_pattern, compile_pattern_or_raise
+from .invoice_line_parse import (
+    MAX_INVOICE_PARSE_FILE_BYTES,
+    MAX_INVOICE_TEXT_CHARS,
+    MAX_REGEX_PATTERN_CHARS,
+    REQUIRED_REGEX_GROUPS,
+    SUPPLIER_REGEX_GROUP,
+    RegexLimitError,
+    compile_line_pattern,
+    compile_pattern_or_raise,
+)
 
 MAX_PURCHASE_BULK_LINES = 100
 INVOICE_URL_ERROR = "Invoice URL must be an uploaded /media/ file or an https:// link."
@@ -361,6 +370,8 @@ class InvoiceLineParseTemplateSerializer(serializers.ModelSerializer):
             return ""
         try:
             rx = compile_pattern_or_raise(text)
+        except RegexLimitError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
         except ValueError as exc:
             raise serializers.ValidationError("Invalid supplier regex pattern.") from exc
         if SUPPLIER_REGEX_GROUP not in rx.groupindex:
@@ -375,6 +386,8 @@ class InvoiceLineParseTemplateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("line_pattern is required.")
         try:
             rx = compile_line_pattern(text)
+        except RegexLimitError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
         except ValueError as exc:
             raise serializers.ValidationError("Invalid line regex pattern.") from exc
         names = frozenset(rx.groupindex.keys())
@@ -387,13 +400,23 @@ class InvoiceLineParseTemplateSerializer(serializers.ModelSerializer):
         return text
 
 
+def validate_invoice_parse_file_size(file):
+    if file is not None and file.size > MAX_INVOICE_PARSE_FILE_BYTES:
+        raise serializers.ValidationError(
+            f"File too large (max {MAX_INVOICE_PARSE_FILE_BYTES // (1024 * 1024)} MB)."
+        )
+    return file
+
+
 class InvoiceParseExtractSerializer(serializers.Serializer):
-    file = serializers.FileField()
+    file = serializers.FileField(validators=[validate_invoice_parse_file_size])
 
 
 class InvoiceParseSuggestSerializer(serializers.Serializer):
-    raw_text = serializers.CharField(required=False, allow_blank=True, default="")
-    file = serializers.FileField(required=False)
+    raw_text = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=MAX_INVOICE_TEXT_CHARS
+    )
+    file = serializers.FileField(required=False, validators=[validate_invoice_parse_file_size])
 
     def validate(self, attrs):
         raw = (attrs.get("raw_text") or "").strip()
@@ -404,11 +427,17 @@ class InvoiceParseSuggestSerializer(serializers.Serializer):
 
 
 class InvoiceParsePreviewSerializer(serializers.Serializer):
-    raw_text = serializers.CharField(required=False, allow_blank=True, default="")
-    line_pattern = serializers.CharField(required=False, allow_blank=True, default="")
-    supplier_pattern = serializers.CharField(required=False, allow_blank=True, default="")
+    raw_text = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=MAX_INVOICE_TEXT_CHARS
+    )
+    line_pattern = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=MAX_REGEX_PATTERN_CHARS
+    )
+    supplier_pattern = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=MAX_REGEX_PATTERN_CHARS
+    )
     template_id = serializers.IntegerField(required=False, allow_null=True)
-    file = serializers.FileField(required=False)
+    file = serializers.FileField(required=False, validators=[validate_invoice_parse_file_size])
 
     def validate(self, attrs):
         raw = (attrs.get("raw_text") or "").strip()
