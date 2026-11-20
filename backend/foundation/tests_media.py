@@ -64,6 +64,17 @@ class ProtectedMediaTests(TestCase):
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
         self.assertTrue(response["Content-Disposition"].startswith("inline"))
 
+    def test_responses_are_never_cached(self):
+        """Regression guard: a cached customer PDF could outlive logout on a shared workshop PC."""
+        anonymous = self.client.get("/media/repair_exports/1/v1.pdf")
+        self.client.force_login(self.staff)
+        served = self.client.get("/media/repair_exports/1/v1.pdf")
+        missing = self.client.get("/media/repair_exports/1/v99.pdf")
+
+        for response in (anonymous, served, missing):
+            with self.subTest(status=response.status_code):
+                self.assertEqual(response["Cache-Control"], "private, no-store")
+
     def test_admin_session_receives_file(self):
         """Regression guard: Django admin file links (RepairDocument inline, purchase invoice) still work."""
         self.client.force_login(self.admin)

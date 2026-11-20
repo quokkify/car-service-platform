@@ -62,6 +62,12 @@ class ProtectedMediaView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        # Shared workshop PCs: a downloaded customer PDF must not stay in the browser cache after logout.
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def get(self, request, path):
         response = serve(request, path, document_root=settings.MEDIA_ROOT)
         response["X-Content-Type-Options"] = "nosniff"
