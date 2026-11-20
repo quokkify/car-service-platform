@@ -1,4 +1,4 @@
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from django.conf import settings
 from django.db import models
@@ -36,10 +36,13 @@ def is_allowed_invoice_url(value: str) -> bool:
         return False
     parts = urlsplit(url)
     if parts.scheme == "https":
-        return bool(parts.netloc)
+        # Credentials in the URL are never legitimate here and can disguise the real host.
+        return bool(parts.hostname) and "@" not in parts.netloc
     if parts.scheme or parts.netloc:
         return False
-    return parts.path.startswith(settings.MEDIA_URL) and ".." not in parts.path.split("/")
+    # Decode first so an encoded "%2e%2e" or "%2f" cannot smuggle a parent-directory segment past the check.
+    path = unquote(parts.path)
+    return path.startswith(settings.MEDIA_URL) and ".." not in path.split("/") and "\\" not in path
 
 
 def supplier_alias_normalize(value: str) -> str:

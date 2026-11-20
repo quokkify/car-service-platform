@@ -433,6 +433,10 @@ class PurchaseApiTests(TestCase):
             "http://example.com/inv.pdf",
             "//example.com/inv.pdf",
             "/media/../admin/",
+            "/media/%2e%2e/api/purchases/",
+            "/media/%2E%2E%2fapi/",
+            "https://user:secret@files.example.com/inv.pdf",
+            "https://user@files.example.com/inv.pdf",
             "/api/purchases/",
             "https:/no-host",
         ]
@@ -483,6 +487,45 @@ class PurchaseApiTests(TestCase):
                 )
                 self.assertEqual(response.status_code, 201, response.content)
                 self.assertEqual(response.json()["invoice_url"], value)
+
+    # Regression guard: the data migration blanks invoice_url values stored before validation existed,
+    # so no client (admin, staff UI) can open a disallowed scheme from a legacy row.
+    def test_migration_blanks_disallowed_legacy_invoice_urls(self):
+        import importlib
+
+        from django.apps import apps as global_apps
+
+        migration = importlib.import_module("purchases.migrations.0015_blank_disallowed_invoice_urls")
+        values = {
+            "javascript:void(0)": "",
+            "http://example.com/inv.pdf": "",
+            "/media/%2e%2e/api/": "",
+            "https://user:secret@example.com/inv.pdf": "",
+            "/media/invoices/ok.pdf": "/media/invoices/ok.pdf",
+            "https://files.example.com/inv.pdf": "https://files.example.com/inv.pdf",
+            "": "",
+        }
+        rows = {
+            value: Purchase.objects.create(
+                order_date="2026-03-20",
+                supplier=self.supplier,
+                unit_of_measure=self.uom_pcs,
+                part_name="Legacy",
+                quantity=1,
+                purchase_price="1.00",
+                invoice_url=value,
+            )
+            for value in values
+        }
+
+        migration.blank_disallowed_invoice_urls(global_apps, None)
+
+        for value, expected in values.items():
+            with self.subTest(value=value):
+                rows[value].refresh_from_db()
+                self.assertEqual(rows[value].invoice_url, expected)
+        operation = migration.Migration.operations[0]
+        self.assertTrue(operation.reversible)
 
     # Regression guard: rows stored before validation existed must not become clickable links in admin.
     def test_admin_invoice_link_only_links_allowed_urls(self):
