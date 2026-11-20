@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import axios from "axios";
+import { isAllowedInvoiceUrl } from "../../../lib/invoiceUrl";
 import type { Vehicle } from "../shared/vehicles";
 import {
   createPurchasesBulk,
@@ -819,6 +820,10 @@ export function usePurchases(vehicles: Vehicle[], options: UsePurchasesOptions =
   }
 
   function handleOpenInvoice(invoiceUrl: string) {
+    if (!isAllowedInvoiceUrl(invoiceUrl)) {
+      setPurchaseError("This invoice link is not an uploaded file or an https:// address, so it was not opened.");
+      return;
+    }
     window.open(invoiceUrl, "_blank", "noopener,noreferrer");
   }
 

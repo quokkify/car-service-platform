@@ -465,7 +465,7 @@ describe("bootstrap application", () => {
     });
     mockApi.post.mockImplementation((url: string) => {
       if (url === "/uploads/invoice/") {
-        return Promise.resolve({ data: { url: "blob:test-invoice", name: "invoice.pdf" } });
+        return Promise.resolve({ data: { url: "/media/invoices/test-invoice.pdf", name: "invoice.pdf" } });
       }
       return Promise.resolve({
         data: { id: 1, email: "manager@test.local", first_name: "Test", last_name: "Manager", role: "admin", is_staff: false },
@@ -1539,7 +1539,7 @@ describe("bootstrap application", () => {
     expect(within(purchaseDialog).queryByText("Open Invoice")).not.toBeInTheDocument();
 
     await user.click(within(purchaseDialog).getByRole("button", { name: "invoice.pdf" }));
-    expect(mockOpen).toHaveBeenCalledWith("blob:test-invoice", "_blank", "noopener,noreferrer");
+    expect(mockOpen).toHaveBeenCalledWith("/media/invoices/test-invoice.pdf", "_blank", "noopener,noreferrer");
 
     await user.click(within(purchaseDialog).getByRole("button", { name: "Delete Invoice" }));
     expect(mockConfirm).toHaveBeenCalledWith("Remove the attached invoice from this purchase?");
@@ -1551,7 +1551,7 @@ describe("bootstrap application", () => {
     const user = userEvent.setup();
     mockApi.post.mockImplementation((url: string, data?: Record<string, unknown>) => {
       if (url === "/uploads/invoice/") {
-        return Promise.resolve({ data: { url: "blob:test-invoice", name: "invoice.pdf" } });
+        return Promise.resolve({ data: { url: "/media/invoices/test-invoice.pdf", name: "invoice.pdf" } });
       }
       if (url === "/purchases/bulk/") {
         const line = (data?.lines as Array<Record<string, unknown>> | undefined)?.[0];
