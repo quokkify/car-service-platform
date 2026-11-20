@@ -1,6 +1,8 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import User
+from .models import InviteToken, User
 
 
 class LoginSerializer(serializers.Serializer):
@@ -35,6 +37,16 @@ class InviteCreateSerializer(serializers.Serializer):
 class AcceptInviteSerializer(serializers.Serializer):
     token = serializers.UUIDField()
     password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate(self, attrs):
+        # The invited user (if the token resolves) lets the similarity validator compare against email/name;
+        # token validity itself is still decided by the view.
+        invite = InviteToken.objects.select_related("user").filter(token=attrs["token"]).first()
+        try:
+            validate_password(attrs["password"], user=invite.user if invite else None)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": list(exc.messages)}) from exc
+        return attrs
 
 
 class UserListSerializer(serializers.ModelSerializer):

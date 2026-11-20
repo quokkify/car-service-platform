@@ -36,9 +36,10 @@ export function AcceptInvitePage() {
       await acceptInvite(token, password);
       setPageState("success");
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      const detail = axiosError.response?.data?.detail;
-      setError(detail ?? "Invalid or expired invite link.");
+      const axiosError = err as { response?: { data?: { detail?: string; password?: string[] } } };
+      const data = axiosError.response?.data;
+      const passwordErrors = Array.isArray(data?.password) ? data.password.join(" ") : "";
+      setError(passwordErrors || data?.detail || "Invalid or expired invite link.");
       setPageState("error");
     } finally {
       setIsSubmitting(false);
