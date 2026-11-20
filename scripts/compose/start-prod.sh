@@ -50,10 +50,15 @@ if [[ ${prod_env_errors} -gt 0 ]]; then
   exit 1
 fi
 
+# The production-like stack is the base file only: ignore COMPOSE_FILE (e.g. from .env) and
+# docker-compose.override.yml so the dev overlay (DEBUG on, dev key) cannot be merged in.
+unset COMPOSE_FILE
+prod_compose=(docker compose -f docker-compose.yml)
+
 export GIT_COMMIT
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-if docker compose ps db | grep -q "Up"; then
+if "${prod_compose[@]}" ps db | grep -q "Up"; then
   bash "${ROOT_DIR}/scripts/db/db-backup.sh" || true
 fi
 
@@ -61,7 +66,7 @@ fi
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 
-docker compose up -d --build
+"${prod_compose[@]}" up -d --build
 
 echo ""
 echo "${COMPOSE_PROJECT_NAME:-car-service-platform} is up:"

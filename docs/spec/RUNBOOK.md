@@ -111,6 +111,7 @@ bash scripts/compose/start-prod.sh
 ```
 
 - Uses **only** `docker-compose.yml` (no `docker-compose.dev.yml`): nginx + static frontend build, gunicorn-style production path as defined in compose.
+- Always uses `docker-compose.yml` alone: `COMPOSE_FILE` and `docker-compose.override.yml` are ignored, so the dev overlay cannot slip in.
 - Requires real values in `.env`; the script refuses to start (and names the variable) when `DJANGO_DEBUG` is on, `DJANGO_SECRET_KEY` is short or a placeholder, `POSTGRES_PASSWORD` is a template value, or `ADMIN_PASSWORD` / `STAFF_PASSWORD` is a known default. Generate a key with `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
 - `ADMIN_PASSWORD` / `STAFF_PASSWORD` are used only to create missing accounts; rotate an existing password with `docker compose exec backend python manage.py changepassword <email>`.
 
@@ -127,7 +128,7 @@ bash scripts/compose/stop-prod.sh
 - Frontend: `http://localhost:${FRONTEND_PORT:-4173}`
 - Admin: `http://localhost:${FRONTEND_PORT:-4173}/admin/` (via nginx); the backend port `${BACKEND_PORT:-8000}` listens on `127.0.0.1` only.
 
-**Login throttling.** Failed logins (API and Django admin) are limited per client IP (`LOGIN_THROTTLE_IP_LIMIT` per `LOGIN_THROTTLE_IP_WINDOW_SECONDS`, default 10 per 60 s) and per account (`LOGIN_THROTTLE_ACCOUNT_LIMIT` per `LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS`, default 10 per 15 min). An IP that signed in to an account successfully is exempt from that account's limit for `LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS` (default 30 days), so failures elsewhere cannot lock the owner out of their usual network. The client IP comes from `DJANGO_CLIENT_IP_HEADER` (default `X-Real-IP`), which the frontend nginx overwrites with the address it sees; this assumes exactly one trusted proxy in front of Django. Counters live in the Django cache: the default LocMem cache is per worker, so with `GUNICORN_WORKERS` > 1 set `DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache` and `DJANGO_CACHE_LOCATION=django_cache`.
+**Login throttling.** Failed logins (API and Django admin) are limited per client IP (`LOGIN_THROTTLE_IP_LIMIT` per `LOGIN_THROTTLE_IP_WINDOW_SECONDS`, default 10 per 60 s) and per account (`LOGIN_THROTTLE_ACCOUNT_LIMIT` per `LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS`, default 10 per 15 min). An IP that signed in to an account successfully is exempt from that account's limit for `LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS` (default 30 days), so failures elsewhere cannot lock the owner out of their usual network. The client IP comes from `DJANGO_CLIENT_IP_HEADER` (default `X-Real-IP`), which the frontend nginx overwrites with the address it sees; this assumes exactly one trusted proxy in front of Django. Counters live in the Django cache; compose defaults to the database cache (`DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache`, `DJANGO_CACHE_LOCATION=django_cache`), shared by all workers and kept across restarts. The LocMem fallback (host-run dev, tests) is per process.
 
 ---
 

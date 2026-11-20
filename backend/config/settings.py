@@ -100,18 +100,24 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "portal_lookup": "30/minute",
     },
+    # One trusted proxy (frontend nginx) sets X-Forwarded-For; DRF throttles use its last entry, not
+    # client-supplied hops.
+    "NUM_PROXIES": 1,
 }
 
-# Login throttle and DRF throttle counters live in the default cache. LocMem is per process: with several
-# gunicorn workers each one keeps its own counters, so the effective limit is multiplied by the worker count.
-# For multi-worker deployments use a shared backend, e.g. DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache
-# with DJANGO_CACHE_LOCATION=django_cache (the container start runs `createcachetable`).
+# Login throttle and DRF throttle counters live in the default cache. Production (compose prod path, Railway)
+# uses the database cache: shared by all gunicorn workers and kept across deploys (the container start runs
+# `createcachetable`). The LocMem fallback (tests, host-run dev) is per process and lost on restart.
+# MAX_ENTRIES is raised from Django's 300 so a flood of failures for random accounts cannot evict real counters.
+_cache_backend = os.environ.get("DJANGO_CACHE_BACKEND", "django.core.cache.backends.locmem.LocMemCache")
 CACHES = {
     "default": {
-        "BACKEND": os.environ.get("DJANGO_CACHE_BACKEND", "django.core.cache.backends.locmem.LocMemCache"),
+        "BACKEND": _cache_backend,
         "LOCATION": os.environ.get("DJANGO_CACHE_LOCATION", ""),
     }
 }
+if _cache_backend.endswith(("LocMemCache", "DatabaseCache", "FileBasedCache")):
+    CACHES["default"]["OPTIONS"] = {"MAX_ENTRIES": int(os.environ.get("DJANGO_CACHE_MAX_ENTRIES", "100000"))}
 
 # Header carrying the client IP, set by the single trusted reverse proxy in front of Django (the frontend nginx
 # overwrites X-Real-IP with the address it sees). If the header holds a list, the last entry (added by the

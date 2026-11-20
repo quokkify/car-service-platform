@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 from users.models import User
 
-from ._seed import check_seed_password
+from ._seed import check_seed_password, refuse_existing_default_password
 
 DEV_STAFF_EMAIL = "staff@autoservice.local"
 DEV_STAFF_PASSWORD = "staff12345"
@@ -22,6 +22,11 @@ class Command(BaseCommand):
         if settings.DEBUG:
             email = email or DEV_STAFF_EMAIL
             password = password or DEV_STAFF_PASSWORD
+        else:
+            for candidate in {email, DEV_STAFF_EMAIL} - {""}:
+                seeded = User.objects.filter(email__iexact=candidate).first()
+                if seeded is not None:
+                    refuse_existing_default_password(seeded, DEV_STAFF_PASSWORD)
 
         if not email or not password:
             self.stdout.write("No staff credentials configured; skipping seed_staff.")

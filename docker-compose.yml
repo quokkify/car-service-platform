@@ -56,8 +56,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-text}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
-      DJANGO_CACHE_BACKEND: ${DJANGO_CACHE_BACKEND:-django.core.cache.backends.locmem.LocMemCache}
-      DJANGO_CACHE_LOCATION: ${DJANGO_CACHE_LOCATION:-}
+      # Shared, persistent rate-limit counters (table created on container start).
+      DJANGO_CACHE_BACKEND: ${DJANGO_CACHE_BACKEND:-django.core.cache.backends.db.DatabaseCache}
+      DJANGO_CACHE_LOCATION: ${DJANGO_CACHE_LOCATION:-django_cache}
       GIT_COMMIT: ${GIT_COMMIT:-unknown}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4173}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}

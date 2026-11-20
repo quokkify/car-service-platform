@@ -171,3 +171,53 @@ class AdminLoginThrottleRegressionTests(TestCase):
         response = self._admin_login("adminpass123", "203.0.113.8")
 
         self.assertEqual(response.status_code, 302)
+
+
+@override_settings(**THROTTLE_SETTINGS)
+class ThrottleCacheCapacityRegressionTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_regression_default_cache_bound_is_raised(self):
+        from django.conf import settings
+
+        self.assertGreaterEqual(settings.CACHES["default"]["OPTIONS"]["MAX_ENTRIES"], 100000)
+
+    def test_regression_flood_of_random_accounts_does_not_evict_target_counter(self):
+        factory = RequestFactory()
+        target_request = factory.post("/api/auth/login", HTTP_X_REAL_IP="198.51.100.1")
+        for _ in range(5):
+            throttling.record_failure(target_request, "victim@test.local")
+
+        for attempt in range(1500):
+            flood_request = factory.post("/api/auth/login", HTTP_X_REAL_IP=f"10.{attempt // 250}.{attempt % 250}.1")
+            throttling.record_failure(flood_request, f"random{attempt}@test.local")
+
+        probe = factory.post("/api/auth/login", HTTP_X_REAL_IP="203.0.113.200")
+        self.assertTrue(throttling.is_blocked(probe, "victim@test.local"))
+
+
+class PortalThrottleRegressionTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_regression_client_supplied_forwarded_for_hops_do_not_split_portal_limit(self):
+        # nginx overwrites X-Forwarded-For with the peer address; anything a client prepends must not create a
+        # fresh throttle bucket.
+        statuses = [
+            self.client.get(
+                "/api/portal/unknown-token/",
+                HTTP_X_FORWARDED_FOR=f"198.51.100.{attempt}, 203.0.113.7",
+            ).status_code
+            for attempt in range(31)
+        ]
+
+        self.assertNotIn(429, statuses[:30])
+        self.assertEqual(statuses[30], 429)

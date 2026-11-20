@@ -111,3 +111,41 @@ class SeedStaffRegressionTests(TestCase):
         staff = User.objects.get(email="staff@autoservice.local")
         self.assertTrue(staff.check_password("staff12345"))
         self.assertEqual(staff.role, User.Role.STAFF)
+
+
+class SeedLegacyDefaultPasswordRegressionTests(TestCase):
+    def _run(self, command):
+        call_command(command, stdout=StringIO(), stderr=StringIO())
+
+    @override_settings(DEBUG=False, ADMIN_EMAIL="admin@autoservice.local", ADMIN_PASSWORD=STRONG_PASSWORD)
+    def test_regression_existing_admin_with_old_default_password_stops_startup(self):
+        User.objects.create_superuser(email="admin@autoservice.local", password="admin12345")
+
+        with self.assertRaisesMessage(CommandError, "changepassword admin@autoservice.local"):
+            self._run("seed_admin")
+
+    @override_settings(DEBUG=False, ADMIN_EMAIL="", ADMIN_PASSWORD="")
+    def test_regression_legacy_dev_admin_detected_without_admin_env(self):
+        User.objects.create_superuser(email="admin@autoservice.local", password="admin12345")
+
+        with self.assertRaisesMessage(CommandError, "default password"):
+            self._run("seed_admin")
+
+    @override_settings(DEBUG=False, STAFF_EMAIL="", STAFF_PASSWORD="")
+    def test_regression_legacy_dev_staff_detected(self):
+        User.objects.create_user(email="staff@autoservice.local", password="staff12345", role="staff")
+
+        with self.assertRaisesMessage(CommandError, "changepassword staff@autoservice.local"):
+            self._run("seed_staff")
+
+    @override_settings(DEBUG=False, ADMIN_EMAIL="admin@autoservice.local", ADMIN_PASSWORD="")
+    def test_rotated_legacy_admin_passes(self):
+        User.objects.create_superuser(email="admin@autoservice.local", password="rotated-pass-1")
+
+        self._run("seed_admin")
+
+    @override_settings(DEBUG=True, ADMIN_EMAIL="", ADMIN_PASSWORD="")
+    def test_debug_keeps_dev_default(self):
+        User.objects.create_superuser(email="admin@autoservice.local", password="admin12345")
+
+        self._run("seed_admin")

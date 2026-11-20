@@ -58,7 +58,7 @@ POSTGRES_PORT=5432
 PORT=8000
 GUNICORN_WORKERS=2
 GUNICORN_BIND=[::]:8000
-# Shared login-throttle counters across gunicorn workers (table created on start)
+# Required: shared, persistent rate-limit counters (table created on start)
 DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache
 DJANGO_CACHE_LOCATION=django_cache
 
@@ -83,7 +83,7 @@ MEDIA_ROOT=/data/media
 ```
 BACKEND_URL=http://backend.railway.internal:8000
 PORT=80
-NGINX_TRUSTED_REAL_IP_FROM=0.0.0.0/0,::/0
+NGINX_TRUSTED_REAL_IP_FROM=<edge address range, see "Client IP" below>
 CORS_ALLOWED_ORIGINS=https://<frontend-domain>.up.railway.app
 FRONTEND_URL=https://<frontend-domain>.up.railway.app
 ```
@@ -93,17 +93,29 @@ FRONTEND_URL=https://<frontend-domain>.up.railway.app
 > `ADMIN_PASSWORD` / `STAFF_PASSWORD` only create missing accounts; rotate existing ones with
 > `railway run python manage.py changepassword <email>` (or the Django admin).
 
-> **Client IP:** Railway documents `X-Real-IP` as the header identifying the client's address
-> ([specs and limits](https://docs.railway.com/networking/public-networking/specs-and-limits)) but publishes no
-> edge address ranges, so the frontend trusts `X-Real-IP` from any peer (`NGINX_TRUSTED_REAL_IP_FROM`) and
-> forwards it to Django, which reads `X-Real-IP` by default (`DJANGO_CLIENT_IP_HEADER`). Without this variable
-> every client shares the edge address and the per-IP login limit applies to all users together.
->
-> Whether the edge **replaces** a client-sent `X-Real-IP` is not documented. Check once after deploying:
-> `curl -s -o /dev/null -H 'X-Real-IP: 203.0.113.9' https://<frontend-domain>/api/health`, then look at the
-> frontend service log line for that request. Your own address there means the edge replaced the header; `203.0.113.9`
-> means it passes client values through — then remove `NGINX_TRUSTED_REAL_IP_FROM`, because the per-IP limit
-> could be evaded. The per-account limit does not depend on the IP source either way.
+#### Client IP
+
+Railway documents `X-Real-IP` as the header identifying the client's address
+([specs and limits](https://docs.railway.com/networking/public-networking/specs-and-limits)) but publishes no
+edge address ranges and does not say whether a client-sent `X-Real-IP` is replaced. The frontend nginx uses
+`X-Real-IP` only from peers in `NGINX_TRUSTED_REAL_IP_FROM` and forwards the result to Django
+(`X-Real-IP`, `X-Forwarded-For`), which uses it for the login and customer-portal rate limits.
+
+- On Railway the frontend **refuses to start** while `NGINX_TRUSTED_REAL_IP_FROM` is empty: every client would
+  share the edge address, so the limits would apply to all users together.
+- `0.0.0.0/0`, `::/0` (any `/0`) are rejected: trusting every peer would let clients pick their own address.
+
+**Before relying on it (run this before the first Railway deploy of this version, and after Railway networking changes):**
+
+1. Deploy the frontend with a value that trusts nothing, e.g. `NGINX_TRUSTED_REAL_IP_FROM=127.0.0.1/32`.
+2. Run `curl -s -o /dev/null -H 'X-Real-IP: 203.0.113.9' https://<frontend-domain>/api/health` and find that
+   request in the frontend service log. The first field is the edge peer address; the last quoted field is the
+   `X-Real-IP` the edge delivered.
+3. If the last field is **your own** address, the edge replaces the header: set `NGINX_TRUSTED_REAL_IP_FROM` to the
+   narrowest range covering the edge peer addresses you see across a few requests and redeploy.
+   If it is `203.0.113.9`, the edge passes client values through: keep `127.0.0.1/32` (limits are then shared by
+   all users) and set `LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS=0` on the backend, because a shared address would make
+   every login look like it comes from a known source. The per-account login limit works either way.
 
 ### 6. Set custom domain (optional)
 
