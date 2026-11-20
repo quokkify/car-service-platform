@@ -303,6 +303,7 @@ jobs:
         with:
           compose-files: |
             docker-compose.yml
+            docker-compose.e2e.yml
             ${{ github.event.pull_request.head.repo.full_name == github.repository && 'docker-compose.ci.cache.yml' || '' }}
           services: db backend frontend
           build: "true"

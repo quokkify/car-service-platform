@@ -1,0 +1,11 @@
+# E2E / CI overlay for the production-image stack (nginx + gunicorn) on a throwaway database.
+# Use: docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+#
+# Turns DEBUG on with an obviously dev-only key so seed_admin / seed_staff create the known test accounts
+# (admin@autoservice.local / admin12345, staff@autoservice.local / staff12345) and session cookies work over plain HTTP.
+# Never use this overlay for a reachable deployment.
+services:
+  backend:
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: e2e-only-insecure-key-do-not-use-in-production

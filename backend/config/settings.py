@@ -5,18 +5,15 @@ from django.templatetags.static import static
 from django.urls import reverse_lazy
 
 from config.admin_navigation import build_sidebar_navigation
+from config.security import validate_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-dev-only-change-me",
-)
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes")
-if not DEBUG and SECRET_KEY.startswith("django-insecure"):
-    raise RuntimeError(
-        "DJANGO_SECRET_KEY env var must be set to a secure value in production"
-    )
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+if DEBUG and not SECRET_KEY:
+    SECRET_KEY = "django-insecure-dev-only-change-me"
+validate_secret_key(SECRET_KEY, DEBUG)
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
 
 INSTALLED_APPS = [
@@ -49,6 +46,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "users.throttling.AdminLoginThrottleMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -103,6 +101,28 @@ REST_FRAMEWORK = {
         "portal_lookup": "30/minute",
     },
 }
+
+# Login throttle and DRF throttle counters live in the default cache. LocMem is per process: with several
+# gunicorn workers each one keeps its own counters, so the effective limit is multiplied by the worker count.
+# For multi-worker deployments use a shared backend, e.g. DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache
+# with DJANGO_CACHE_LOCATION=django_cache (the container start runs `createcachetable`).
+CACHES = {
+    "default": {
+        "BACKEND": os.environ.get("DJANGO_CACHE_BACKEND", "django.core.cache.backends.locmem.LocMemCache"),
+        "LOCATION": os.environ.get("DJANGO_CACHE_LOCATION", ""),
+    }
+}
+
+# Header carrying the client IP, set by the single trusted reverse proxy in front of Django (the frontend nginx
+# overwrites X-Real-IP with the address it sees). If the header holds a list, the last entry (added by the
+# trusted proxy) is used. Set to an empty value when Django is exposed directly; REMOTE_ADDR is used then.
+CLIENT_IP_HEADER = os.environ.get("DJANGO_CLIENT_IP_HEADER", "X-Real-IP").strip()
+
+# Failed logins (API and Django admin) are limited per client IP and per account within fixed time windows.
+LOGIN_THROTTLE_IP_LIMIT = int(os.environ.get("LOGIN_THROTTLE_IP_LIMIT", "10"))
+LOGIN_THROTTLE_IP_WINDOW_SECONDS = int(os.environ.get("LOGIN_THROTTLE_IP_WINDOW_SECONDS", "60"))
+LOGIN_THROTTLE_ACCOUNT_LIMIT = int(os.environ.get("LOGIN_THROTTLE_ACCOUNT_LIMIT", "10"))
+LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS = int(os.environ.get("LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS", "900"))
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()

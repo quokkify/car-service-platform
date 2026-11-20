@@ -2,7 +2,6 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
-from django.core.cache import cache
 from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -11,9 +10,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-LOGIN_RATE_LIMIT = 10
-LOGIN_BLOCK_SECONDS = 60
-
+from . import throttling
 from .models import InviteToken, User
 from .serializers import AcceptInviteSerializer, InviteCreateSerializer, LoginSerializer, UserListSerializer, UserSerializer
 
@@ -34,29 +31,24 @@ class LoginView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "")).split(",")[0].strip()
-        cache_key = f"login_attempts:{ip}"
-        attempts = cache.get(cache_key, 0)
-
-        if attempts >= LOGIN_RATE_LIMIT:
-            return Response(
-                {"detail": "Too many login attempts. Please wait 1 minute."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        if throttling.is_blocked(request, serializer.validated_data["email"]):
+            return Response(
+                {"detail": "Too many login attempts. Please try again later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        # Failures are counted by the user_login_failed receiver in users.throttling.
         user = authenticate(
             request,
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
         )
         if user is None or not user.is_active:
-            cache.set(cache_key, attempts + 1, LOGIN_BLOCK_SECONDS)
             return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        cache.delete(cache_key)
         login(request, user)
         request.session.set_expiry(settings.SESSION_COOKIE_AGE)
         return Response(UserSerializer(user).data, status=status.HTTP_200_OK)

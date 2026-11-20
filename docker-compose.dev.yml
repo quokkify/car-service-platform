@@ -27,6 +27,9 @@ services:
         python manage.py seed_staff
         exec python manage.py runserver 0.0.0.0:8000
     environment:
+      # Dev stack is always DEBUG with an obviously dev-only key (never valid with DEBUG off).
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: dev-only-insecure-key-do-not-use-in-production
       # Prefer CORS_DEV_ORIGINS (publish-dev-to-lan.sh exports it). Else CORS_ALLOWED_ORIGINS from .env — same keys many teams already use.
       CORS_ALLOWED_ORIGINS: ${CORS_DEV_ORIGINS:-${CORS_ALLOWED_ORIGINS:-http://localhost:${FRONTEND_DEV_PORT:-4173},http://127.0.0.1:${FRONTEND_DEV_PORT:-4173},http://localhost:5173,http://127.0.0.1:5173}}
       FRONTEND_URL: ${FRONTEND_DEV_URL:-http://localhost:${FRONTEND_DEV_PORT:-4173}}

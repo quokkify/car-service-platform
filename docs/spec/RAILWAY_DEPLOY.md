@@ -43,7 +43,7 @@ Railway auto-detects `frontend/railway.toml`.
 
 ```
 DJANGO_SECRET_KEY=<generate: python -c "import secrets; print(secrets.token_urlsafe(50))">
-DJANGO_DEBUG=True
+DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=<backend-domain>.up.railway.app,healthcheck.railway.app
 CORS_ALLOWED_ORIGINS=https://<frontend-domain>.up.railway.app
 FRONTEND_URL=https://<frontend-domain>.up.railway.app
@@ -58,6 +58,9 @@ POSTGRES_PORT=5432
 PORT=8000
 GUNICORN_WORKERS=2
 GUNICORN_BIND=[::]:8000
+# Shared login-throttle counters across gunicorn workers (table created on start)
+DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache
+DJANGO_CACHE_LOCATION=django_cache
 
 ADMIN_EMAIL=admin@yourdomain.com
 ADMIN_PASSWORD=<strong-password>
@@ -80,9 +83,21 @@ MEDIA_ROOT=/data/media
 ```
 BACKEND_URL=http://backend.railway.internal:8000
 PORT=80
+NGINX_TRUSTED_REAL_IP_FROM=0.0.0.0/0,::/0
 CORS_ALLOWED_ORIGINS=https://<frontend-domain>.up.railway.app
 FRONTEND_URL=https://<frontend-domain>.up.railway.app
 ```
+
+> **Secrets:** with `DJANGO_DEBUG=False` the backend refuses to start unless `DJANGO_SECRET_KEY` is a random
+> value of at least 50 characters, and `seed_admin` / `seed_staff` refuse known default or weak passwords.
+> `ADMIN_PASSWORD` / `STAFF_PASSWORD` only create missing accounts; rotate existing ones with
+> `railway run python manage.py changepassword <email>` (or the Django admin).
+
+> **Client IP:** Railway's edge overwrites `X-Real-IP` with the client address and does not publish its
+> proxy ranges, so the frontend trusts `X-Real-IP` from any peer (`NGINX_TRUSTED_REAL_IP_FROM`) and forwards it
+> to Django, which reads `X-Real-IP` by default. The frontend is only reachable through the edge; traffic over
+> `*.railway.internal` is trusted by design. Without this variable every client shares the edge address and
+> the per-IP login limit applies to all users together.
 
 ### 6. Set custom domain (optional)
 
@@ -129,10 +144,11 @@ The script pushes `main` to GitHub then runs `railway up --detach` from each ser
 ## Startup sequence (automatic on each backend deploy)
 
 1. `python manage.py migrate --noinput` — applies new DB migrations
-2. `python manage.py collectstatic --noinput`
-3. `python manage.py seed_admin` — creates admin account if missing (idempotent)
-4. `python manage.py seed_staff` — creates staff account if missing (idempotent)
-5. `gunicorn config.wsgi:application -c gunicorn.conf.py`
+2. `python manage.py createcachetable` — creates the cache table when `DatabaseCache` is configured (no-op otherwise)
+3. `python manage.py collectstatic --noinput`
+4. `python manage.py seed_admin` — creates admin account if missing; never changes an existing account
+5. `python manage.py seed_staff` — creates staff account if missing; never changes an existing account
+6. `gunicorn config.wsgi:application -c gunicorn.conf.py`
 
 ---
 
