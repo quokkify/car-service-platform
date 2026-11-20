@@ -9,9 +9,9 @@ from vehicles.models import Vehicle
 
 
 def repair_pdf_upload_to(instance: "RepairDocument", filename: str) -> str:
-    """Return the upload path for a repair PDF export, versioned by document version."""
+    """Return a non-enumerable upload path for a repair PDF export, versioned by document version."""
     repair_id = instance.repair_id if instance.repair_id is not None else instance.repair.pk
-    return f"repair_exports/{repair_id}/v{instance.version}.pdf"
+    return f"repair_exports/{repair_id}/v{instance.version}-{secrets.token_hex(16)}.pdf"
 
 
 class Repair(models.Model):
