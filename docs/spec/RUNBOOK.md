@@ -16,6 +16,9 @@ cp .env.example .env
 - `docker-compose.yml` — base stack (db, backend, frontend service definitions).
 - `docker-compose.dev.yml` — merged by **`scripts/compose/start.sh`**: Vite dev server, hot reload, bind mounts.
 - `docker-compose.dev.lan.yml` — merged by **`scripts/compose/publish-dev-to-lan.sh`**: bind frontend/backend on all interfaces for phones on the same Wi‑Fi.
+- `docker-compose.e2e.yml` — merged by CI E2E jobs on top of the base file: DEBUG on with a dev-only key so the known test accounts are seeded. Never for a reachable deployment.
+
+The base `docker-compose.yml` is production-like and fails closed: `DJANGO_DEBUG` defaults to `False`, and Django refuses to start unless `DJANGO_SECRET_KEY` is a random value of at least 50 characters without template placeholders. The dev overlay sets `DJANGO_DEBUG=True` and a dev-only key itself, so `.env` copied from `.env.example` works for development unchanged. The backend port is published on `127.0.0.1` only.
 
 `COMPOSE_FILE` defaults inside scripts; you normally do not set it by hand unless debugging.
 
@@ -88,7 +91,9 @@ docker compose cp backend:/tmp/sample-invoice-pl-01-demo.pdf docs/samples/sample
 2. **Login / session broken with Vite in Docker:** ensure `DJANGO_ALLOWED_HOSTS` includes `backend` (default in compose). Proxied `/api` uses `Host: backend`; if Django rejects the host, cookies and CSRF fail.
 3. **Port 4173 busy:** stop prod (`bash scripts/compose/stop-prod.sh`) or set e.g. `FRONTEND_DEV_PORT=5173` and extend `CORS_DEV_ORIGINS` if needed (see `.env.example`).
 
-### Default dev credentials (from demo / `.env.example`)
+### Default dev credentials (DEBUG only, when `ADMIN_PASSWORD` / `STAFF_PASSWORD` are empty)
+
+Seeds create these accounts only if they do not exist yet; existing accounts are never modified.
 
 - Admin: `admin@autoservice.local` / `admin12345`
 - Staff (when seeded): `staff@autoservice.local` / `staff12345`
@@ -106,6 +111,9 @@ bash scripts/compose/start-prod.sh
 ```
 
 - Uses **only** `docker-compose.yml` (no `docker-compose.dev.yml`): nginx + static frontend build, gunicorn-style production path as defined in compose.
+- Always uses `docker-compose.yml` alone: `COMPOSE_FILE` and `docker-compose.override.yml` are ignored, so the dev overlay cannot slip in.
+- Requires real values in `.env`; the script refuses to start (and names the variable) when `DJANGO_DEBUG` is on, `DJANGO_SECRET_KEY` is short or a placeholder, `POSTGRES_PASSWORD` is a template value, or `ADMIN_PASSWORD` / `STAFF_PASSWORD` is a known default. Generate a key with `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
+- `ADMIN_PASSWORD` / `STAFF_PASSWORD` are used only to create missing accounts; rotate an existing password with `docker compose exec backend python manage.py changepassword <email>`.
 
 **Stop**
 
@@ -118,7 +126,9 @@ bash scripts/compose/stop-prod.sh
 **URLs**
 
 - Frontend: `http://localhost:${FRONTEND_PORT:-4173}`
-- Backend / Admin: same pattern as dev on `${BACKEND_PORT:-8000}`.
+- Admin: `http://localhost:${FRONTEND_PORT:-4173}/admin/` (via nginx); the backend port `${BACKEND_PORT:-8000}` listens on `127.0.0.1` only.
+
+**Login throttling.** Failed logins (API and Django admin) are limited per client IP (`LOGIN_THROTTLE_IP_LIMIT` per `LOGIN_THROTTLE_IP_WINDOW_SECONDS`, default 10 per 60 s) and per account (`LOGIN_THROTTLE_ACCOUNT_LIMIT` per `LOGIN_THROTTLE_ACCOUNT_WINDOW_SECONDS`, default 10 per 15 min). An IP that signed in to an account successfully is exempt from that account's limit for `LOGIN_THROTTLE_KNOWN_SOURCE_SECONDS` (default 30 days), so failures elsewhere cannot lock the owner out of their usual network. The client IP comes from `DJANGO_CLIENT_IP_HEADER` (default `X-Real-IP`), which the frontend nginx overwrites with the address it sees; this assumes exactly one trusted proxy in front of Django. Counters live in the Django cache; compose defaults to the database cache (`DJANGO_CACHE_BACKEND=django.core.cache.backends.db.DatabaseCache`, `DJANGO_CACHE_LOCATION=django_cache`), shared by all workers and kept across restarts. The LocMem fallback (host-run dev, tests) is per process.
 
 ---
 

@@ -29,7 +29,8 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     restart: unless-stopped
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      # Loopback only: browsers reach the API through the frontend nginx. LAN exposure is opt-in (docker-compose.dev.lan.yml).
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -39,8 +40,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-car_service_platform}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      # Production-like defaults: DEBUG off, and Django refuses to start without a strong DJANGO_SECRET_KEY.
+      # Dev / E2E get explicit values from docker-compose.dev.yml / docker-compose.e2e.yml.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       # Include `backend` so API calls proxied from the Vite dev container (Host: backend) pass Django's host check.
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       # 127.0.0.1: required for Playwright/CI (see .env.example); CSRF_TRUSTED_ORIGINS is derived from this in Django settings.
@@ -53,6 +56,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-text}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-1}
+      # Shared, persistent rate-limit counters (table created on container start).
+      DJANGO_CACHE_BACKEND: ${DJANGO_CACHE_BACKEND:-django.core.cache.backends.db.DatabaseCache}
+      DJANGO_CACHE_LOCATION: ${DJANGO_CACHE_LOCATION:-django_cache}
       GIT_COMMIT: ${GIT_COMMIT:-unknown}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4173}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
@@ -84,6 +90,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       PORT: "80"
+      NGINX_TRUSTED_REAL_IP_FROM: ${NGINX_TRUSTED_REAL_IP_FROM:-}
     depends_on:
       backend:
         condition: service_healthy

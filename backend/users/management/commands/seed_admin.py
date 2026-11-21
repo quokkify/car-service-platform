@@ -3,39 +3,40 @@ from django.core.management.base import BaseCommand
 
 from users.models import User
 
+from ._seed import check_seed_password, refuse_existing_default_password
+
+DEV_ADMIN_EMAIL = "admin@autoservice.local"
+DEV_ADMIN_PASSWORD = "admin12345"
+
 
 class Command(BaseCommand):
-    help = "Create or update the initial admin user from environment or debug defaults."
+    help = (
+        "Create the initial admin user from ADMIN_EMAIL / ADMIN_PASSWORD if it does not exist yet. "
+        "Existing accounts are never modified. Dev defaults apply only with DEBUG on."
+    )
 
     def handle(self, *args, **options):
-        email = (settings.ADMIN_EMAIL or "").strip() or None
-        password = (settings.ADMIN_PASSWORD or "").strip() or None
+        email = (settings.ADMIN_EMAIL or "").strip().lower()
+        password = (settings.ADMIN_PASSWORD or "").strip()
 
-        if not email and settings.DEBUG:
-            email = "admin@autoservice.local"
-            password = "admin12345"
-
-        if email and not password and settings.DEBUG:
-            password = "admin12345"
+        if settings.DEBUG:
+            email = email or DEV_ADMIN_EMAIL
+            password = password or DEV_ADMIN_PASSWORD
+        else:
+            for candidate in {email, DEV_ADMIN_EMAIL} - {""}:
+                seeded = User.objects.filter(email__iexact=candidate).first()
+                if seeded is not None:
+                    refuse_existing_default_password(seeded, DEV_ADMIN_PASSWORD)
 
         if not email or not password:
             self.stdout.write("No admin credentials configured; skipping seed_admin.")
             return
 
-        user, created = User.objects.get_or_create(
-            email=email.lower(),
-            defaults={
-                "role": User.Role.ADMIN,
-                "is_staff": True,
-                "is_superuser": True,
-            },
-        )
-        user.role = User.Role.ADMIN
-        user.is_staff = True
-        user.is_superuser = True
-        user.is_active = True
-        user.set_password(password)
-        user.save()
+        if User.objects.filter(email__iexact=email).exists():
+            self.stdout.write(f"Admin user {email} already exists; leaving it unchanged.")
+            return
 
-        action = "Created" if created else "Updated"
-        self.stdout.write(f"{action} admin user: {user.email}")
+        check_seed_password(password, "ADMIN_PASSWORD")
+
+        User.objects.create_superuser(email=email, password=password, role=User.Role.ADMIN)
+        self.stdout.write(f"Created admin user: {email}")

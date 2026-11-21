@@ -1,6 +1,10 @@
 import os
 
-from .settings import *  # noqa: F401,F403
+# Tests never need a real secret: pin a long test-only key so the fail-closed check in settings passes
+# regardless of what the CI job or developer shell exports.
+os.environ["DJANGO_SECRET_KEY"] = "test-only-key-" + "0123456789abcdef" * 4
+
+from .settings import *  # noqa: E402,F401,F403
 
 TEST_OUTPUT_DIR = os.environ.get("TEST_OUTPUT_DIR", "test-results")
 

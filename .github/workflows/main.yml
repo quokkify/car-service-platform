@@ -123,6 +123,9 @@ jobs:
           set -euo pipefail
           cp .env.example .env
           perl -0pi -e 's/^LOG_FORMAT=text$/LOG_FORMAT=json/m; s/^LOG_LEVEL=DEBUG$/LOG_LEVEL=INFO/m' .env
+          # Production-like boot (DEBUG off): Django refuses to start without a strong, non-placeholder key.
+          secret_key="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
+          perl -0pi -e "s/^DJANGO_SECRET_KEY=.*\$/DJANGO_SECRET_KEY=${secret_key}/m" .env
 
       - uses: quokkify/ci-kit/actions/compose-up@v4.3.7
         env:
