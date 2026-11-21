@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.4.3](https://github.com/quokkify/car-service-platform/compare/v1.4.2...v1.4.3) (2026-11-21)
+
+<!-- project-toolkit:release-notes v2 -->
+**At a glance:** 5 fixed · 42 internal
+
+### 🐛 Fixed
+
+- **ci:** name the module in each Allure job fragment ([#280](https://github.com/quokkify/car-service-platform/pull/280))
+- **ci:** restore rendered validate.yml contract ([#275](https://github.com/quokkify/car-service-platform/pull/275))
+- **gradle:** update com.fasterxml.jackson.core:jackson-databind to v2.22.3 [security] ([#301](https://github.com/quokkify/car-service-platform/pull/301))
+- **security:** harden staff-supplied input handling — Hardened staff-facing input handling: - Invoice uploads accept only document and image files whose content matches the extension; HTML files are no longer accepted. - Invoice links must point to an uploaded file or an https:// address. - Names containing `<` or `&` no longer break purchase order and completion PDF export. - Invoice-parse patterns and texts have size and time limits. - Invite passwords must pass the standard password strength checks. ([#297](https://github.com/quokkify/car-service-platform/pull/297))
+- **template:** align release helper with selected ref ([#260](https://github.com/quokkify/car-service-platform/pull/260))
+
+<details><summary>Internal changes (42 PRs)</summary>
+
+**Dependencies**
+
+- @playwright/test 1.61.1 → 1.63.0 ([#251](https://github.com/quokkify/car-service-platform/pull/251))
+- vitest 4.1.10 → 4.1.11 ([#250](https://github.com/quokkify/car-service-platform/pull/250))
+
+**Maintenance**
+
+- **ci-kit:** hand off base, security, release, allure, renovate to modules ([#288](https://github.com/quokkify/car-service-platform/pull/288))
+- **ci-kit:** hand off validate to core module ([#276](https://github.com/quokkify/car-service-platform/pull/276))
+- **ci-kit:** prepare for the legacy template exit ([#287](https://github.com/quokkify/car-service-platform/pull/287))
+- **ci:** refresh test pyramid snapshot ([#252](https://github.com/quokkify/car-service-platform/pull/252))
+- **npm:** update axios to v1.20.0 [security] ([#302](https://github.com/quokkify/car-service-platform/pull/302))
+- **npm:** update vite to v8.1.6 [security] ([#300](https://github.com/quokkify/car-service-platform/pull/300))
+- **pr-title:** allow deps type and underscores in scope ([#269](https://github.com/quokkify/car-service-platform/pull/269))
+- **renovate:** adopt the supply-chain hardening and stack grouping presets ([#299](https://github.com/quokkify/car-service-platform/pull/299))
+- **template:** align shared automation ([#256](https://github.com/quokkify/car-service-platform/pull/256))
+- **template:** update project template to v2.23.1 ([#258](https://github.com/quokkify/car-service-platform/pull/258))
+- **template:** update shared project template (26 PRs, [#259](https://github.com/quokkify/car-service-platform/pull/259)–[#305](https://github.com/quokkify/car-service-platform/pull/305))
+- **template:** update shared project template to ci-kit v3.0.0 ([#265](https://github.com/quokkify/car-service-platform/pull/265))
+- **testing:** reference renamed ci-kit in test pyramid guide ([#266](https://github.com/quokkify/car-service-platform/pull/266))
+- **tooling:** activate Copier template automation ([#248](https://github.com/quokkify/car-service-platform/pull/248))
+- **tooling:** adopt project-toolkit automation ([#247](https://github.com/quokkify/car-service-platform/pull/247))
+
+</details>
+
 ## [1.4.2](https://github.com/quokkify/car-service-platform/compare/v1.4.1...v1.4.2) (2026-09-19)
 
 
