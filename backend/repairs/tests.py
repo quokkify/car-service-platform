@@ -1,8 +1,12 @@
+import io
+import os
 import tempfile
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from PIL import Image
+from pypdf import PdfReader
 from rest_framework.test import APIClient
 
 from customers.models import Customer
@@ -820,6 +824,43 @@ class RepairPdfViewTests(TestCase):
         repair.mileage_at_service = 123456
         repair.save()
         return repair
+
+    # Regression guard: names with markup characters used to make the completion PDF export fail with HTTP 500,
+    # and an <img> tag in user text could pull a local image file into the document.
+    def test_pdf_export_renders_user_markup_literally(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = os.path.join(tmp, "probe.png")
+            Image.new("RGB", (4, 4), (255, 0, 0)).save(image_path)
+            img_markup = f'<img src="{image_path}" width="4" height="4"/>'
+            self.customer.full_name = "Anna <Nowak> & Co"
+            self.customer.save()
+            self.vehicle.make = "Toy<ota"
+            self.vehicle.model = img_markup
+            self.vehicle.save()
+            repair = Repair.objects.create(vehicle=self.vehicle, service_name="Brakes & <b>pads", status="new")
+            repair.status = "completed"
+            repair.mileage_at_service = 1000
+            repair.save()
+            Purchase.objects.create(
+                order_date="2026-03-20",
+                supplier=Supplier.objects.create(name="Parts"),
+                unit_of_measure=self.uom_pcs,
+                part_name="Disc a<b",
+                quantity=1,
+                purchase_price="10.00",
+                sale_price="20.00",
+                repair_code=repair.tracking_code,
+            )
+            self.client.force_authenticate(self.staff_user)
+
+            response = self.client.post(f"/api/repairs/{repair.id}/pdf/export/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"/Subtype /Image", response.content)
+        # Compare without whitespace: text extraction re-flows wrapped cells and may insert spaces.
+        text = "".join("".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(response.content)).pages).split())
+        for literal in ("Anna <Nowak> & Co", "Toy<ota", img_markup, "Brakes & <b>pads", "Disc a<b"):
+            self.assertIn("".join(literal.split()), text)
 
     def test_pdf_requires_authentication(self):
         repair = self._create_completed_repair()

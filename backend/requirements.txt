@@ -10,5 +10,6 @@ reportlab>=5,<5.1
 pypdf>=6,<7
 pytesseract>=0.3.13,<0.4
 pdf2image>=1.17,<2
+regex>=2026.9,<2027
 Pillow>=11,<13
 sentry-sdk[django]>=2,<3

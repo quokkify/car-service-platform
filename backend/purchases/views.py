@@ -15,9 +15,12 @@ from rest_framework.views import APIView
 
 from foundation.pagination import StandardPagination
 from .invoice_line_parse import (
+    MAX_INVOICE_TEXT_CHARS,
+    RegexLimitError,
     enrich_parsed_lines,
     extract_supplier,
     extract_text_from_file,
+    new_regex_deadline,
     parse_invoice_lines,
     resolve_supplier_name,
     suggest_line_pattern,
@@ -50,6 +53,17 @@ def _safe_invoice_parse_error_response(exc: Exception, *, detail: str, status_co
     else:
         logger.warning("Invoice parse validation error: %s", exc)
     return Response({"detail": detail}, status=status_code)
+
+
+def _invoice_text_too_long_response() -> Response:
+    return Response(
+        {"detail": f"Invoice text is too long (max {MAX_INVOICE_TEXT_CHARS} characters)."},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _regex_limit_response(exc: RegexLimitError) -> Response:
+    return _safe_invoice_parse_error_response(exc, detail=str(exc), status_code=status.HTTP_400_BAD_REQUEST)
 
 
 def _po_filename(supplier_name: str, order_date) -> str:
@@ -363,8 +377,13 @@ class InvoiceParseSuggestView(APIView):
                 {"detail": "No text to analyze. Paste invoice text or upload a PDF / image / text file."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        pattern, label, preview = suggest_line_pattern(raw)
-        sup_pat, sup_name = suggest_supplier_pattern(raw)
+        if len(raw) > MAX_INVOICE_TEXT_CHARS:
+            return _invoice_text_too_long_response()
+        try:
+            pattern, label, preview = suggest_line_pattern(raw)
+            sup_pat, sup_name = suggest_supplier_pattern(raw)
+        except RegexLimitError as exc:
+            return _regex_limit_response(exc)
         if not pattern:
             return Response(
                 {
@@ -427,6 +446,8 @@ class InvoiceParsePreviewView(APIView):
                 {"detail": "No text to parse. Paste invoice text or upload a text-based PDF."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if len(raw) > MAX_INVOICE_TEXT_CHARS:
+            return _invoice_text_too_long_response()
 
         supplier_pattern_effective = supplier_pattern_inline
         if template_id is not None:
@@ -441,8 +462,12 @@ class InvoiceParsePreviewView(APIView):
         else:
             pattern = line_pattern
 
+        deadline = new_regex_deadline()
         try:
-            lines, warnings = parse_invoice_lines(raw, pattern)
+            lines, warnings = parse_invoice_lines(raw, pattern, deadline)
+            supplier_name, supplier_warnings = extract_supplier(raw, supplier_pattern_effective or None, deadline)
+        except RegexLimitError as exc:
+            return _regex_limit_response(exc)
         except ValueError as exc:
             return _safe_invoice_parse_error_response(
                 exc,
@@ -450,7 +475,6 @@ class InvoiceParsePreviewView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        supplier_name, supplier_warnings = extract_supplier(raw, supplier_pattern_effective or None)
         warnings = list(warnings) + list(supplier_warnings)
 
         if len(lines) > MAX_PURCHASE_BULK_LINES:

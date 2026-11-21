@@ -1,3 +1,6 @@
+from urllib.parse import unquote, urlsplit
+
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -22,6 +25,24 @@ class UnitOfMeasure(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+
+def is_allowed_invoice_url(value: str) -> bool:
+    """Blank, a path under MEDIA_URL (what the invoice upload returns) or an absolute https URL."""
+    url = value or ""
+    if not url:
+        return True
+    if any(ch.isspace() or ord(ch) < 32 or ch == "\\" for ch in url):
+        return False
+    parts = urlsplit(url)
+    if parts.scheme == "https":
+        # Credentials in the URL are never legitimate here and can disguise the real host.
+        return bool(parts.hostname) and "@" not in parts.netloc
+    if parts.scheme or parts.netloc:
+        return False
+    # Decode first so an encoded "%2e%2e" or "%2f" cannot smuggle a parent-directory segment past the check.
+    path = unquote(parts.path)
+    return path.startswith(settings.MEDIA_URL) and ".." not in path.split("/") and "\\" not in path
 
 
 def supplier_alias_normalize(value: str) -> str:

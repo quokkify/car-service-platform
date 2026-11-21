@@ -1,14 +1,19 @@
 """Compatibility entrypoint: invoice OCR + regex parsing lives in ``invoice_parse``."""
 
 from .invoice_parse import (
+    MAX_INVOICE_PARSE_FILE_BYTES,
+    MAX_INVOICE_TEXT_CHARS,
+    MAX_REGEX_PATTERN_CHARS,
     REQUIRED_REGEX_GROUPS,
     SUGGESTION_CANDIDATES,
     SUPPLIER_PATTERN_CANDIDATES,
     SUPPLIER_REGEX_GROUP,
+    RegexLimitError,
     compile_line_pattern,
     compile_pattern_or_raise,
     enrich_parsed_lines,
     extract_supplier,
+    new_regex_deadline,
     extract_text_from_file,
     normalize_decimal,
     parse_invoice_lines,
@@ -18,6 +23,10 @@ from .invoice_parse import (
 )
 
 __all__ = [
+    "MAX_INVOICE_PARSE_FILE_BYTES",
+    "MAX_INVOICE_TEXT_CHARS",
+    "MAX_REGEX_PATTERN_CHARS",
+    "RegexLimitError",
     "REQUIRED_REGEX_GROUPS",
     "SUPPLIER_REGEX_GROUP",
     "SUGGESTION_CANDIDATES",
@@ -26,6 +35,7 @@ __all__ = [
     "compile_pattern_or_raise",
     "enrich_parsed_lines",
     "extract_supplier",
+    "new_regex_deadline",
     "extract_text_from_file",
     "normalize_decimal",
     "parse_invoice_lines",

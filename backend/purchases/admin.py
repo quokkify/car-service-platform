@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 
-from .models import InvoiceLineParseTemplate, Purchase, Supplier, SupplierAlias, UnitOfMeasure
+from .models import InvoiceLineParseTemplate, Purchase, Supplier, SupplierAlias, UnitOfMeasure, is_allowed_invoice_url
 
 
 class SupplierAliasInline(admin.TabularInline):
@@ -57,6 +57,9 @@ class PurchaseAdmin(ModelAdmin):
 
     @admin.display(description="Invoice")
     def invoice_link(self, obj):
-        if obj.invoice_url:
-            return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">View</a>', obj.invoice_url)
-        return "—"
+        if not obj.invoice_url:
+            return "—"
+        if not is_allowed_invoice_url(obj.invoice_url):
+            # Legacy value with a disallowed scheme: show it as inert (escaped) text, never as a link.
+            return obj.invoice_url
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">View</a>', obj.invoice_url)

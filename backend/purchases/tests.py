@@ -1,10 +1,18 @@
 import base64
+import http.server
+import io
+import os
 import shutil
+import tempfile
+import threading
+import time
 import unittest
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
+from pypdf import PdfReader
 from rest_framework.test import APIClient
 
 from customers.models import Customer
@@ -414,6 +422,130 @@ class PurchaseApiTests(TestCase):
         self.assertIsNone(purchase.current_stock_quantity)
         self.assertIsNone(purchase.inventory_checked_on)
 
+    # Regression guard: invoice_url is rendered as a link (staff UI, Django admin), so only a stored
+    # /media/ path or an https URL is accepted; script-capable or other schemes are refused.
+    def test_invoice_url_rejects_non_media_non_https_values(self):
+        self.client.force_authenticate(self.user)
+        rejected = [
+            "javascript:void(0)",
+            " JavaScript:void(0)",
+            "data:text/plain,invoice",
+            "http://example.com/inv.pdf",
+            "//example.com/inv.pdf",
+            "/media/../admin/",
+            "/media/%2e%2e/api/purchases/",
+            "/media/%2E%2E%2fapi/",
+            "https://user:secret@files.example.com/inv.pdf",
+            "https://user@files.example.com/inv.pdf",
+            "/api/purchases/",
+            "https:/no-host",
+        ]
+        purchase = Purchase.objects.create(
+            order_date="2026-03-20",
+            supplier=self.supplier,
+            unit_of_measure=self.uom_pcs,
+            part_name="Brake Disc",
+            quantity=1,
+            purchase_price="10.00",
+        )
+        for value in rejected:
+            with self.subTest(value=value):
+                create = self.client.post(
+                    "/api/purchases/", self._purchase_payload(invoice_url=value), format="json"
+                )
+                self.assertEqual(create.status_code, 400)
+                self.assertIn("invoice_url", create.json())
+
+                update = self.client.patch(
+                    f"/api/purchases/{purchase.id}", {"invoice_url": value}, format="json"
+                )
+                self.assertEqual(update.status_code, 400)
+                self.assertIn("invoice_url", update.json())
+
+                bulk = self.client.post(
+                    "/api/purchases/bulk/",
+                    {
+                        "order_date": "2026-04-01",
+                        "supplier_name": "Bulk Supplier",
+                        "invoice_url": value,
+                        "lines": [{"part_name": "Part A", "quantity": 1, "purchase_price": "10.00"}],
+                    },
+                    format="json",
+                )
+                self.assertEqual(bulk.status_code, 400)
+                self.assertIn("invoice_url", bulk.json())
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.invoice_url, "")
+        self.assertFalse(Purchase.objects.exclude(invoice_url="").exists())
+
+    def test_invoice_url_accepts_media_path_https_and_blank(self):
+        self.client.force_authenticate(self.user)
+        for value in ("/media/invoices/abc123.pdf", "https://files.example.com/inv.pdf", ""):
+            with self.subTest(value=value):
+                response = self.client.post(
+                    "/api/purchases/", self._purchase_payload(invoice_url=value), format="json"
+                )
+                self.assertEqual(response.status_code, 201, response.content)
+                self.assertEqual(response.json()["invoice_url"], value)
+
+    # Regression guard: the data migration blanks invoice_url values stored before validation existed,
+    # so no client (admin, staff UI) can open a disallowed scheme from a legacy row.
+    def test_migration_blanks_disallowed_legacy_invoice_urls(self):
+        import importlib
+
+        from django.apps import apps as global_apps
+
+        migration = importlib.import_module("purchases.migrations.0015_blank_disallowed_invoice_urls")
+        values = {
+            "javascript:void(0)": "",
+            "http://example.com/inv.pdf": "",
+            "/media/%2e%2e/api/": "",
+            "https://user:secret@example.com/inv.pdf": "",
+            "/media/invoices/ok.pdf": "/media/invoices/ok.pdf",
+            "https://files.example.com/inv.pdf": "https://files.example.com/inv.pdf",
+            "": "",
+        }
+        rows = {
+            value: Purchase.objects.create(
+                order_date="2026-03-20",
+                supplier=self.supplier,
+                unit_of_measure=self.uom_pcs,
+                part_name="Legacy",
+                quantity=1,
+                purchase_price="1.00",
+                invoice_url=value,
+            )
+            for value in values
+        }
+
+        migration.blank_disallowed_invoice_urls(global_apps, None)
+
+        for value, expected in values.items():
+            with self.subTest(value=value):
+                rows[value].refresh_from_db()
+                self.assertEqual(rows[value].invoice_url, expected)
+        operation = migration.Migration.operations[0]
+        self.assertTrue(operation.reversible)
+
+    # Regression guard: rows stored before validation existed must not become clickable links in admin.
+    def test_admin_invoice_link_only_links_allowed_urls(self):
+        from django.contrib import admin as django_admin
+
+        from .admin import PurchaseAdmin
+
+        model_admin = PurchaseAdmin(Purchase, django_admin.site)
+        purchase = Purchase(invoice_url="javascript:void(0)")
+        rendered = str(model_admin.invoice_link(purchase))
+        self.assertNotIn("<a", rendered)
+        self.assertNotIn('href="javascript', rendered)
+
+        purchase.invoice_url = "/media/invoices/abc.pdf"
+        rendered = str(model_admin.invoice_link(purchase))
+        self.assertIn('href="/media/invoices/abc.pdf"', rendered)
+
+        purchase.invoice_url = ""
+        self.assertEqual(model_admin.invoice_link(purchase), "—")
+
     def test_purchase_order_pdf_returns_pdf(self):
         self.client.force_authenticate(self.user)
         self.supplier.registered_address = "Supplier HQ, Warsaw"
@@ -442,6 +574,81 @@ class PurchaseApiTests(TestCase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn("po_existing_supplier_2026-03-20.pdf", response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def _po_pdf(self, supplier_name, part_name):
+        return self.client.post(
+            "/api/purchases/po/pdf/",
+            {
+                "order_date": "2026-03-20",
+                "supplier_name": supplier_name,
+                "lines": [
+                    {"part_name": part_name, "quantity": "1", "purchase_price": "10.00"},
+                ],
+            },
+            format="json",
+        )
+
+    @staticmethod
+    def _pdf_text(content):
+        # Join wrapped table lines so a literal that spans a cell line break can still be matched.
+        return " ".join(" ".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(content)).pages).split())
+
+    # Regression guard: names with markup characters used to make PO export fail with HTTP 500.
+    def test_purchase_order_pdf_renders_markup_characters_literally(self):
+        self.client.force_authenticate(self.user)
+        self.supplier.name = "Smith & <Sons>"
+        self.supplier.nip = "PL<1>"
+        self.supplier.registered_address = "Main St <5> & Co"
+        self.supplier.save()
+
+        response = self._po_pdf("Smith & <Sons>", "Filter a<b <b>bold &amp; done")
+
+        self.assertEqual(response.status_code, 200)
+        text = self._pdf_text(response.content)
+        for literal in ("Smith & <Sons>", "PL<1>", "Main St <5> & Co", "Filter a<b <b>bold &amp; done"):
+            self.assertIn(literal, text)
+
+    # Regression guard: an <img> tag in user text must stay text — no local file is read into the PDF.
+    def test_purchase_order_pdf_does_not_embed_local_file_from_img_markup(self):
+        self.client.force_authenticate(self.user)
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = os.path.join(tmp, "probe.png")
+            Image.new("RGB", (4, 4), (255, 0, 0)).save(image_path)
+            markup = f'<img src="{image_path}" width="4" height="4"/>'
+
+            response = self._po_pdf("Existing Supplier", markup)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"/Subtype /Image", response.content)
+        self.assertIn(markup, self._pdf_text(response.content))
+
+    # Regression guard: an <img> URL in user text must not make the server issue an outbound request.
+    def test_purchase_order_pdf_does_not_fetch_url_from_img_markup(self):
+        self.client.force_authenticate(self.user)
+        requests_seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 — stdlib hook name
+                requests_seen.append(self.path)
+                self.send_response(404)
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            markup = f'<img src="http://127.0.0.1:{server.server_address[1]}/probe.png" width="4" height="4"/>'
+            response = self._po_pdf("Existing Supplier", markup)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(requests_seen, [])
+        self.assertIn(markup, self._pdf_text(response.content))
 
     def test_purchase_order_pdf_requires_lines(self):
         self.client.force_authenticate(self.user)
@@ -951,6 +1158,128 @@ class InvoiceParseApiTests(TestCase):
         self.assertEqual(body["supplier_resolution"]["match"], "alias")
         self.assertEqual(body["supplier_resolution"]["resolved_name"], "Canonical Sp z o.o.")
         self.assertEqual(body["supplier_resolution"]["supplier_id"], canonical.id)
+
+    # Regression guard: a staff-supplied pattern with catastrophic backtracking used to pin the worker.
+    # It must now fail fast with a 400 instead of hanging or returning 500.
+    SLOW_LINE_PATTERN = r"(?P<part_name>(?:a|aa)+)b(?P<quantity>\d)(?P<purchase_price>\d)"
+
+    def test_preview_pathological_line_pattern_returns_400_within_time_bound(self):
+        self.client.force_authenticate(self.staff)
+        started = time.monotonic()
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"raw_text": "a" * 48, "line_pattern": self.SLOW_LINE_PATTERN},
+            format="json",
+        )
+
+        elapsed = time.monotonic() - started
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long to evaluate", response.json()["detail"])
+        self.assertLess(elapsed, 5)
+
+    def test_preview_pathological_supplier_pattern_returns_400_within_time_bound(self):
+        template = InvoiceLineParseTemplate.objects.filter(name="Pipe table (demo PL)").first()
+        self.assertIsNotNone(template)
+        self.client.force_authenticate(self.staff)
+        started = time.monotonic()
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {
+                "raw_text": "a" * 48,
+                "template_id": template.pk,
+                "supplier_pattern": r"(?P<supplier_name>(?:a|aa)+)b",
+            },
+            format="json",
+        )
+
+        elapsed = time.monotonic() - started
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long to evaluate", response.json()["detail"])
+        self.assertLess(elapsed, 5)
+
+    def test_preview_rejects_overlong_pattern_and_text(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS, MAX_REGEX_PATTERN_CHARS
+
+        self.client.force_authenticate(self.staff)
+        long_pattern = r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)" + "x?" * MAX_REGEX_PATTERN_CHARS
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"raw_text": "Filter 1 10", "line_pattern": long_pattern},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("line_pattern", response.json())
+
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {
+                "raw_text": "Filter 1 10\n" * (MAX_INVOICE_TEXT_CHARS // 10),
+                "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("raw_text", response.json())
+
+    def test_suggest_rejects_overlong_text(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS
+
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(
+            "/api/purchases/invoice-parse/suggest/",
+            {"raw_text": "x" * (MAX_INVOICE_TEXT_CHARS + 1)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    # Regression guard: extracted file text is capped too, not only pasted text.
+    def test_preview_rejects_overlong_text_extracted_from_file(self):
+        from .invoice_parse.constants import MAX_INVOICE_TEXT_CHARS
+
+        self.client.force_authenticate(self.staff)
+        upload = SimpleUploadedFile("invoice.txt", b"y" * (MAX_INVOICE_TEXT_CHARS + 1), content_type="text/plain")
+        response = self.client.post(
+            "/api/purchases/invoice-parse/preview/",
+            {"file": upload, "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)"},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long", response.json()["detail"])
+
+    # Regression guard: OCR/extract endpoints enforce the same per-file cap as the invoice upload.
+    def test_parse_endpoints_reject_oversized_file(self):
+        from .invoice_parse.constants import MAX_INVOICE_PARSE_FILE_BYTES
+
+        self.client.force_authenticate(self.staff)
+        for url, extra in (
+            ("/api/purchases/invoice-parse/extract/", {}),
+            ("/api/purchases/invoice-parse/suggest/", {}),
+            ("/api/purchases/invoice-parse/preview/", {"line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)"}),
+        ):
+            with self.subTest(url=url):
+                upload = SimpleUploadedFile(
+                    "invoice.txt", b"z" * (MAX_INVOICE_PARSE_FILE_BYTES + 1), content_type="text/plain"
+                )
+                response = self.client.post(url, {"file": upload, **extra}, format="multipart")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("file", response.json())
+
+    def test_template_rejects_overlong_pattern(self):
+        from .invoice_parse.constants import MAX_REGEX_PATTERN_CHARS
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/purchases/invoice-parse-templates/",
+            {
+                "name": "Too long",
+                "line_pattern": r"(?P<part_name>\w+) (?P<quantity>\d+) (?P<purchase_price>\d+)" + "x?" * MAX_REGEX_PATTERN_CHARS,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("line_pattern", response.json())
 
     def test_suggest_returns_pattern_for_multi_line_demo(self):
         self.client.force_authenticate(self.staff)

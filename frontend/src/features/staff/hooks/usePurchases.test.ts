@@ -114,6 +114,27 @@ describe("usePurchases", () => {
   });
 });
 
+describe("usePurchases handleOpenInvoice", () => {
+  // Regression guard: a legacy invoice_url with a disallowed scheme must not be opened from the staff UI.
+  it("opens only uploaded /media/ paths and https links", async () => {
+    fetchSuppliersMock.mockResolvedValue([]);
+    fetchUnitsOfMeasureMock.mockResolvedValue([]);
+    fetchPurchasesMock.mockResolvedValue(emptyPurchasePage());
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    const { result } = renderHook(() => usePurchases([]));
+    await waitFor(() => expect(result.current.isPurchasesLoading).toBe(false));
+
+    act(() => result.current.handleOpenInvoice("javascript:void(0)"));
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(result.current.purchaseError).toMatch(/not opened/);
+
+    act(() => result.current.handleOpenInvoice("/media/invoices/abc.pdf"));
+    expect(openSpy).toHaveBeenCalledWith("/media/invoices/abc.pdf", "_blank", "noopener,noreferrer");
+    openSpy.mockRestore();
+  });
+});
+
 describe("mapApiPurchaseToPurchaseEntry", () => {
   it("maps API purchase fields into the UI entry shape", () => {
     expect(mapApiPurchaseToPurchaseEntry(purchase())).toEqual({

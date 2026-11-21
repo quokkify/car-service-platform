@@ -213,7 +213,7 @@ export function PurchaseInvoiceImportBlock({ onApplyParsed, linkInvoiceFileAfter
         ref={fileInputRef}
         type="file"
         className="hidden-file-input"
-        accept=".pdf,.txt,.text,.html,.png,.jpg,.jpeg,.webp,.tif,.tiff"
+        accept=".pdf,.txt,.text,.png,.jpg,.jpeg,.webp,.tif,.tiff"
         disabled={dropDisabled}
         tabIndex={-1}
         onChange={(e) => void handleFileInputChange(e.target.files?.[0] ?? null)}

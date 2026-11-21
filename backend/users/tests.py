@@ -188,6 +188,28 @@ class InviteApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    # Regression guard: invite acceptance must apply AUTH_PASSWORD_VALIDATORS, not only a length check.
+    def test_accept_invite_rejects_weak_passwords(self):
+        self._login_as_admin()
+        create_response = self._create_invite("weakpwd.person@test.local", "staff")
+        token = create_response.json()["invite_url"].split("token=")[1]
+        self.client.post("/api/auth/logout")
+
+        for weak in ("password", "12345678901", "weakpwd.person"):
+            with self.subTest(password=weak):
+                response = self.client.post(
+                    "/api/auth/users/invite/accept",
+                    {"token": token, "password": weak},
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("password", response.json())
+                self.assertTrue(response.json()["password"])
+
+        self.assertTrue(InviteToken.objects.filter(token=token).exists())
+        self.assertFalse(User.objects.get(email="weakpwd.person@test.local").has_usable_password())
+
     def test_reset_invite(self):
         self._login_as_admin()
         create_response = self._create_invite("toreset@test.local", "staff")

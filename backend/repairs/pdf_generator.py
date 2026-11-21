@@ -4,6 +4,7 @@ import os
 from decimal import Decimal
 from io import BytesIO
 from typing import Any, Sequence
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -118,7 +119,7 @@ def _fmt(amount: Any) -> str:
 def _top_block(repair: Any, font: str, width: float) -> Table:
     s = _styles(font)
     left = Paragraph("CERTIFICATE<br/>OF COMPLETION", s["title"])
-    right = Paragraph(f"<b>{repair.tracking_code}</b>", s["doc_id"])
+    right = Paragraph(f"<b>{escape(repair.tracking_code)}</b>", s["doc_id"])
     t = Table([[left, right]], colWidths=[width * 0.6, width * 0.4])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
@@ -156,7 +157,7 @@ def _info_block(repair: Any, font: str, width: float) -> Table:
     s = _styles(font)
 
     def row(label: str, value: str) -> list:
-        return [Paragraph(label, s["info_label"]), Paragraph(value, s["info_value"])]
+        return [Paragraph(label, s["info_label"]), Paragraph(escape(value), s["info_value"])]
 
     data = [row(label, value) for label, value in _repair_info_rows(repair)]
 
@@ -186,11 +187,12 @@ def _items_table(
     def th(text: str) -> Paragraph:
         return Paragraph(text, s["th"])
 
+    # Cell text is user/catalog data, never markup: escape it so reportlab renders it literally.
     def td(text: str) -> Paragraph:
-        return Paragraph(text, s["td"])
+        return Paragraph(escape(text), s["td"])
 
     def td_r(text: str) -> Paragraph:
-        return Paragraph(text, s["td_right"])
+        return Paragraph(escape(text), s["td_right"])
 
     headers = [th("Description"), th("Qty"), th("Price"), th("Total")]
     data = [headers]

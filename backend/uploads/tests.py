@@ -109,3 +109,73 @@ class InvoiceUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("detail", response.json())
+
+    # Regression guard: active content (HTML/SVG/XML) must never be stored under /media/ — it would be
+    # served back from the backend origin and could run script in a signed-in admin's session.
+    def test_active_content_extensions_are_rejected(self):
+        self._login(self.staff, self.staff_password)
+        cases = [
+            ("invoice.html", b"<html><body>invoice</body></html>", "text/html"),
+            ("invoice.htm", b"<html><body>invoice</body></html>", "text/html"),
+            ("invoice.svg", b'<svg xmlns="http://www.w3.org/2000/svg"></svg>', "image/svg+xml"),
+            ("invoice.xhtml", b"<html xmlns='http://www.w3.org/1999/xhtml'></html>", "application/xhtml+xml"),
+            ("invoice.xml", b"<?xml version='1.0'?><invoice/>", "application/xml"),
+        ]
+        for name, body, content_type in cases:
+            with self.subTest(name=name):
+                upload = SimpleUploadedFile(name, body, content_type=content_type)
+
+                response = self.client.post(UPLOAD_URL, {"file": upload}, format="multipart")
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("detail", response.json())
+
+    # Regression guard: the extension alone is not trusted — content must match the declared type.
+    def test_content_not_matching_extension_is_rejected(self):
+        self._login(self.staff, self.staff_password)
+        markup = b"<html><body>not an invoice</body></html>"
+        for name in ("invoice.pdf", "invoice.png", "invoice.jpg", "invoice.webp", "invoice.tiff", "invoice.docx", "invoice.xls"):
+            with self.subTest(name=name):
+                upload = SimpleUploadedFile(name, markup, content_type="application/octet-stream")
+
+                response = self.client.post(UPLOAD_URL, {"file": upload}, format="multipart")
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("detail", response.json())
+
+    # Regression guard: a .txt upload whose content is markup is refused (browsers may sniff it as HTML).
+    def test_text_upload_with_markup_is_rejected(self):
+        self._login(self.staff, self.staff_password)
+        for body in (b"<html><body>x</body></html>", b"\xef\xbb\xbf  \n<!DOCTYPE html><p>x", b"<svg><text>x</text></svg>"):
+            with self.subTest(body=body[:20]):
+                upload = SimpleUploadedFile("invoice.txt", body, content_type="text/plain")
+
+                response = self.client.post(UPLOAD_URL, {"file": upload}, format="multipart")
+
+                self.assertEqual(response.status_code, 400)
+
+    def test_legitimate_invoice_types_are_accepted(self):
+        self._login(self.staff, self.staff_password)
+        cases = [
+            ("invoice.pdf", b"%PDF-1.7\n" + b"x" * 64),
+            ("scan.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64),
+            ("scan.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64),
+            ("scan.jpeg", b"\xff\xd8\xff\xe1" + b"\x00" * 64),
+            ("scan.webp", b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"\x00" * 64),
+            ("scan.tif", b"II*\x00" + b"\x00" * 64),
+            ("scan.tiff", b"MM\x00*" + b"\x00" * 64),
+            ("invoice.txt", "Sprzedawca: Demo — faktura 1 < 2 & ok\n".encode("utf-8")),
+            ("invoice.text", b"Line 1\nLine 2\n"),
+            ("invoice.doc", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64),
+            ("invoice.xls", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64),
+            ("invoice.docx", b"PK\x03\x04" + b"\x00" * 64),
+            ("invoice.xlsx", b"PK\x03\x04" + b"\x00" * 64),
+        ]
+        for name, body in cases:
+            with self.subTest(name=name):
+                upload = SimpleUploadedFile(name, body, content_type="application/octet-stream")
+
+                response = self.client.post(UPLOAD_URL, {"file": upload}, format="multipart")
+
+                self.assertEqual(response.status_code, 201, response.content)
+                self.assertTrue(response.json()["url"].endswith(name.rsplit(".", 1)[1].lower()))
