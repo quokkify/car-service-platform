@@ -393,7 +393,8 @@ class PurchaseApiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["lines"][0]["quantity"][0], "This unit only allows whole quantities.")
+        # DRF >= 3.18 reports many=True errors as a dict keyed by line index (encode/django-rest-framework#9837).
+        self.assertEqual(response.json()["lines"]["0"]["quantity"][0], "This unit only allows whole quantities.")
 
     def test_bulk_create_shop_consumables_starts_not_inventoried(self):
         self.client.force_authenticate(self.user)
