@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.3](https://github.com/quokkify/car-service-platform/compare/v1.4.2...v1.4.3) (2026-11-21)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** name the module in each Allure job fragment ([#280](https://github.com/quokkify/car-service-platform/issues/280)) ([ab78cc2](https://github.com/quokkify/car-service-platform/commit/ab78cc230171d6b15d572a48006fab27223509dc))
+* **ci:** restore rendered validate.yml contract ([#275](https://github.com/quokkify/car-service-platform/issues/275)) ([d42577f](https://github.com/quokkify/car-service-platform/commit/d42577fb627a5548314adb8704e843ea74f4e31b))
+* **gradle:** update com.fasterxml.jackson.core:jackson-databind to v2.22.3 [security] ([#301](https://github.com/quokkify/car-service-platform/issues/301)) ([d21dd71](https://github.com/quokkify/car-service-platform/commit/d21dd71d8814bb530cd9ae5db81ab752552cb0b6))
+* **security:** harden staff-supplied input handling ([#297](https://github.com/quokkify/car-service-platform/issues/297)) ([c609690](https://github.com/quokkify/car-service-platform/commit/c609690d1c89ef97adacd114eeb67741c9534362))
+* **template:** align release helper with selected ref ([#260](https://github.com/quokkify/car-service-platform/issues/260)) ([72ed452](https://github.com/quokkify/car-service-platform/commit/72ed452caf1778fd06427bc158d3756e19b600fb))
+
+
+### 📚 Documentation
+
+* **testing:** reference renamed ci-kit in test pyramid guide ([#266](https://github.com/quokkify/car-service-platform/issues/266)) ([878cf4d](https://github.com/quokkify/car-service-platform/commit/878cf4daf577b2fde23d198a3a15ad6b917146bf))
+
 ## [1.4.2](https://github.com/quokkify/car-service-platform/compare/v1.4.1...v1.4.2) (2026-09-19)
 
 
