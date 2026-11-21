@@ -1,9 +1,8 @@
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, re_path
-from django.views.static import serve
 
-from foundation.views import HealthView, VersionView
+from foundation.views import HealthView, ProtectedMediaView, VersionView
 from repairs.views import PortalRepairLookupView
 
 admin.site.site_header = "Car Service Platform Admin"
@@ -27,5 +26,5 @@ urlpatterns = [
 ]
 
 urlpatterns += [
-    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    re_path(r"^media/(?P<path>.*)$", ProtectedMediaView.as_view(), name="protected-media"),
 ]

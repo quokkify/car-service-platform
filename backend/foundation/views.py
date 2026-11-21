@@ -3,12 +3,18 @@ import platform
 import time
 
 import django
+from django.conf import settings
 from django.db import connection
-from rest_framework.permissions import AllowAny, IsAdminUser
+from django.utils.http import content_disposition_header
+from django.views.static import serve
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 _start_time = time.time()
+
+# Inert types the staff UI opens in a tab (invoice scans, completion PDFs); everything else downloads.
+INLINE_MEDIA_TYPES = frozenset({"application/pdf", "image/jpeg", "image/png", "image/webp"})
 
 
 class HealthView(APIView):
@@ -49,3 +55,24 @@ class VersionView(APIView):
                 "debug": os.environ.get("DJANGO_DEBUG", "False").lower() in ("true", "1"),
             }
         )
+
+
+class ProtectedMediaView(APIView):
+    """Serve a file from MEDIA_ROOT to logged-in users only; uploaded active content never renders inline."""
+
+    permission_classes = [IsAuthenticated]
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        # Shared workshop PCs: a downloaded customer PDF must not stay in the browser cache after logout.
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def get(self, request, path):
+        response = serve(request, path, document_root=settings.MEDIA_ROOT)
+        response["X-Content-Type-Options"] = "nosniff"
+        if response.status_code == 200:
+            content_type = response["Content-Type"].split(";")[0].strip().lower()
+            as_attachment = content_type not in INLINE_MEDIA_TYPES
+            response["Content-Disposition"] = content_disposition_header(as_attachment, os.path.basename(path))
+        return response
