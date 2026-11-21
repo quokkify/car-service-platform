@@ -7,7 +7,9 @@
     "github>quokkify/renovate-presets//presets/gradle/default",
     "github>quokkify/renovate-presets//presets/docker/default",
     "github>quokkify/renovate-presets//presets/github-actions/default",
-    "github>quokkify/ci-kit//renovate/default"
+    "github>quokkify/ci-kit//renovate/default",
+    "github>quokkify/renovate-presets//presets/hardening/supply-chain",
+    "github>quokkify/renovate-presets//presets/grouping/coupled-stacks"
   ],
   "enabledManagers": [
     "gradle",
