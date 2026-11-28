@@ -1,30 +1,30 @@
 # Test pyramid snapshot
 
-_Generated: `2026-09-20T08:01:22.675Z`_
-_Source workflow run id: `35498200013`_
-_Head SHA: `89b3bab`_
+_Generated: `2026-11-28T11:01:57.151Z`_
+_Source workflow run id: `46137598945`_
+_Head SHA: `d21dd71`_
 
 ## Counts by layer (`epic` / Allure `layer`)
 
 | Layer | `epic` / `layer` | Cases | Passed | Failed | Broken | Skipped |
 | --- | --- | --: | --: | --: | --: | --: |
-| Unit (base) | `unit` | **249** | 249 | 0 | 0 | 0 |
-| Integration (middle) | `api` / `integration` | **187** | 187 | 0 | 0 | 0 |
+| Unit (base) | `unit` | **270** | 270 | 0 | 0 | 0 |
+| Integration (middle) | `api` / `integration` | **207** | 207 | 0 | 0 | 0 |
 | UI / E2E (top) | `end-to-end` / `ui` | **117** | 117 | 0 | 0 | 0 |
-| **Σ pyramid layers** | | **553** | | | | |
+| **Σ pyramid layers** | | **594** | | | | |
 
 ## Shares (pyramid layers only)
 
 | Layer | Share of Σ layers |
 | --- | ---: |
-| Unit (base) | 45.0% |
-| Integration (middle) | 33.8% |
-| UI / E2E (top) | 21.2% |
+| Unit (base) | 45.5% |
+| Integration (middle) | 34.8% |
+| UI / E2E (top) | 19.7% |
 
 ```text
-UI / E2E (top)         117             █████████████
-Integration (middle)   187         █████████████████████
-Unit (base)            249      ████████████████████████████
+UI / E2E (top)         117              ████████████
+Integration (middle)   207         █████████████████████
+Unit (base)            270      ████████████████████████████
 ```
 
 ## Advisory (planning only)
@@ -37,8 +37,8 @@ These checks **never fail the workflow**; they surface in GitHub **Annotations**
 
 | Gate id | Status | Detail |
 | --- | --- | --- |
-| PYRAMID_UNIT_SHARE_LOW | ✓ ok | unit ≥ 45% of Σ layers (actual 45.0%) |
-| PYRAMID_E2E_SHARE_HIGH | ✓ ok | UI/E2E ≤ 28% of Σ layers (actual 21.2%) |
+| PYRAMID_UNIT_SHARE_LOW | ✓ ok | unit ≥ 45% of Σ layers (actual 45.5%) |
+| PYRAMID_E2E_SHARE_HIGH | ✓ ok | UI/E2E ≤ 28% of Σ layers (actual 19.7%) |
 | PYRAMID_UNKNOWN_EPIC | ✓ ok | other epic count: 0 |
 
 _Blocking failures: none (reserved for a future strict mode)._
